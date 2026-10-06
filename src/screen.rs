@@ -112,6 +112,8 @@ pub struct Screen {
     /// Layers as last written: covering or not.
     covered: HashMap<String, bool>,
     reported: bool,
+    /// Each side's picks as last checked (see [`Screen::check`]).
+    checked: [Vec<String>; 2],
 }
 
 impl Screen {
@@ -121,6 +123,7 @@ impl Screen {
             if self.on {
                 self.on = false;
                 self.covered.clear();
+                self.checked = Default::default();
                 if std::mem::take(&mut self.unsaved) {
                     lanes::save();
                 }
@@ -139,6 +142,7 @@ impl Screen {
         let cards = read_grid(ui, known);
         self.learn(ui, &cards);
 
+        self.check(cfg, &cards);
         let side = player_side(ui, team_name);
         let pick_phase = ui.text(HEADER_STEP).is_some_and(|t| t.contains("pick_phase"));
         if !self.reported && !cards.is_empty() {
@@ -186,6 +190,41 @@ impl Screen {
             if cover || self.covered.contains_key(&layer) {
                 self.covered.insert(layer, cover);
             }
+        }
+    }
+
+    /// Whether each side's picks can still be seated one per position - for the AI's picks the
+    /// proof that the draft hook holds the lock. Written to `diag.log` whenever a side picks.
+    fn check(&mut self, cfg: &Config, cards: &[Card]) {
+        if !cfg.enabled {
+            return;
+        }
+        let played = lanes::played();
+        for (side, name) in ["blue", "red"].iter().enumerate() {
+            let picks: Vec<String> =
+                cards.iter().filter(|c| if side == 0 { c.blue } else { c.red }).map(|c| c.champ.clone()).collect();
+            if picks == self.checked[side] {
+                continue;
+            }
+            self.checked[side] = picks.clone();
+            if picks.is_empty() {
+                continue;
+            }
+            let lanes: Vec<lanes::Lanes> = picks.iter().map(|c| lanes::allowed(c, cfg, played.as_deref())).collect();
+            let seated = lanes::fits(&lanes);
+            let detail: Vec<String> = picks
+                .iter()
+                .zip(&lanes)
+                .map(|(c, l)| {
+                    let at: Vec<&str> = lanes::ROLES.iter().enumerate().filter(|(i, _)| l[*i]).map(|(_, r)| *r).collect();
+                    format!("{c} ({})", if at.len() == 5 { "any".to_string() } else { at.join("/") })
+                })
+                .collect();
+            diag::log(&format!(
+                "[check] {name} picks {}: {}",
+                detail.join(", "),
+                if seated { "fit one per position" } else { "DO NOT fit one per position - the lock did not hold" }
+            ));
         }
     }
 
@@ -398,6 +437,25 @@ pub(crate) mod tests {
         lanes::clear();
         lanes::load();
         assert_eq!(lanes::main_of("d"), Some([true, true, false, false, false]));
+        lanes::clear();
+    }
+
+    #[test]
+    fn the_check_says_whether_a_team_fits() {
+        let _serial = crate::tests::serial();
+        crate::tests::temp_dir();
+        lanes::clear();
+        let cfg = Config { history: false, ..Config::default() };
+        let mut ui = screen(&[("a", &["top"]), ("b", &["top"]), ("c", &["mid"])]);
+        let mut s = Screen::default();
+        ui.set_visible(&format!("{GRID}.a.red"), true);
+        ui.set_visible(&format!("{GRID}.c.red"), true);
+        s.tick(&mut ui, 0, "Mods FC", &known, &cfg);
+        ui.set_visible(&format!("{GRID}.b.red"), true);
+        s.tick(&mut ui, 10, "Mods FC", &known, &cfg);
+        let log = std::fs::read_to_string(crate::paths::mod_dir().join(crate::diag::LOG_FILE)).unwrap();
+        assert!(log.contains("[check] red picks a (Top), c (Mid): fit one per position"), "{log}");
+        assert!(log.contains("[check] red picks a (Top), b (Top), c (Mid): DO NOT fit"), "{log}");
         lanes::clear();
     }
 
