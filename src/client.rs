@@ -35,6 +35,7 @@ struct State {
     frame: u64,
     history: History,
     screen: Screen,
+    probe: crate::probe::Probe,
     /// The save's champion ids (cards are named by them), and the save they were read for.
     champions: HashSet<String>,
     champions_for: Option<(usize, String)>,
@@ -74,5 +75,8 @@ impl StableExtension for ClientExt {
         let champions = &st.champions;
         let known = |c: &str| champions.contains(c);
         st.screen.tick(ctx, st.frame, &team_name, &known, &cfg);
+        let on_screen = ctx.ui_exists(crate::screen::GRID);
+        let swap = ctx.ui_visible("main.swap") == Some(true);
+        st.probe.tick(&mut ClientSource { ctx }, on_screen, swap);
     }
 }

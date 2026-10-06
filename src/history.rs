@@ -35,6 +35,8 @@ const FRAME_BUDGET: Duration = Duration::from_micros(600);
 const MAX_READS_PER_FRAME: usize = 6;
 /// Unplayed solo-rank games looked at again per listing (newest first).
 const RECHECK_UNPLAYED: usize = 50;
+/// The newest competition matches already in the save that are checked when it is opened.
+const RECENT_CHECKED: usize = 3;
 
 #[derive(Default)]
 pub struct History {
@@ -53,8 +55,8 @@ pub struct History {
     published_at: Option<Instant>,
     debt: Duration,
     reported: bool,
-    /// The competition records listed when the save was opened: any other is a match played
-    /// this session, and its positions are checked against the lock (see [`check_match`]).
+    /// The competition records listed when the save was opened, but the newest few: any other is
+    /// a match played since, and its positions are checked against the lock (see [`check_match`]).
     at_start: Option<HashSet<usize>>,
 }
 
@@ -123,7 +125,9 @@ impl History {
             let mut ids = src.record_ids(*kind);
             ids.sort_unstable_by(|a, b| b.cmp(a));
             if k == 0 && self.at_start.is_none() {
-                self.at_start = Some(ids.iter().copied().collect());
+                // the newest matches are checked too: the last one may have ended just before
+                // the game was closed
+                self.at_start = Some(ids.iter().skip(RECENT_CHECKED).copied().collect());
             }
             let mut rechecked = 0;
             for id in ids {
@@ -453,7 +457,7 @@ pub(crate) mod tests {
         h.next_list = None;
         run(&mut h, &mut save, 5);
         let log = std::fs::read_to_string(crate::paths::mod_dir().join(crate::diag::LOG_FILE)).unwrap();
-        assert!(!log.contains("match #1"), "a match from before this session is not checked");
+        assert!(log.contains("[result] match #1: all 10 champions played their positions"), "the newest matches are checked at start: {log}");
         assert!(log.contains("[result] match #2: 1 of 10 off their positions - red thresh played Jungle"), "{log}");
         crate::config::set(crate::config::Config::default());
         lanes::clear();
