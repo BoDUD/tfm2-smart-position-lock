@@ -24,6 +24,10 @@
 | | `min_games` / `share` | 8 / 0.15 | 英雄至少打过这么多场、某位置占比至少这么多，才算它能打这个位置 |
 | `[positions]` | 英雄 id | （空） | 手动指定位置，例如 `ahri=Mid,Support`，完全替代自动判断 |
 
+## 英雄联盟英雄（league Mod）
+
+league Mod 没有给英雄设置位置，选人卡片上显示的大多是“上路+打野”，自动判断用不上。[`presets/league_positions.ini`](presets/league_positions.ini) 按英雄联盟官方主位置整理好了全部 68 个英雄：把它的内容复制到 `settings.ini` 的 `[positions]` 段即可，每行后面有中文名，想改哪个英雄直接改。
+
 ## 出问题时
 
 Mod 文件夹里的 `diag.log` 记录了 Mod 读到了什么（存档里的比赛数、选人界面的卡片数、你是哪一方）。每次启动游戏重写，上一次的保留为 `diag.prev.log`。

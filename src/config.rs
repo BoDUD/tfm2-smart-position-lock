@@ -241,6 +241,19 @@ mod tests {
     }
 
     #[test]
+    fn the_league_preset_reads_cleanly() {
+        let (cfg, warnings) = parse(include_str!("../presets/league_positions.ini"));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert_eq!(cfg.overrides.len(), 68);
+        assert_eq!(cfg.override_of("league_ahri"), Some([false, false, true, false, false]));
+        assert_eq!(cfg.override_of("league_vayne"), Some([true, false, false, true, false]));
+        // every position has plenty of champions
+        for lane in 0..5 {
+            assert!(cfg.overrides.values().filter(|l| l[lane]).count() >= 12, "position {lane}");
+        }
+    }
+
+    #[test]
     fn values_overrides_and_mistakes() {
         let (cfg, warnings) = parse(
             "[lock]\nai=off\nplayer = no\n[history]\nhistory=off\nshare=2\nmin_games=x\nfoo=1\n[positions]\nAhri = Mid, Support\nzed=Somewhere\n",
