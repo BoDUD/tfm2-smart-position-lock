@@ -124,6 +124,7 @@ impl Screen {
         if !ui.exists(GRID) {
             if self.on {
                 self.on = false;
+                crate::hook::set_live(false);
                 self.covered.clear();
                 self.checked = Default::default();
                 self.slots_logged = false;
@@ -135,6 +136,7 @@ impl Screen {
         }
         if !self.on {
             self.on = true;
+            crate::hook::set_live(true);
             self.next_read = 0;
             diag::log("[ui] ban/pick screen");
         }

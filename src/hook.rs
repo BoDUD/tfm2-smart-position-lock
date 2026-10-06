@@ -10,7 +10,8 @@
 //! call in full, then one line per AI pick, so it can be checked after a draft.
 
 use std::collections::HashMap;
-use std::sync::{Mutex, PoisonError};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::{PoisonError, RwLock};
 
 use mod_api_stable::{StableDraftContext, StableDraftDecision, StableDraftHook};
 
@@ -20,37 +21,91 @@ pub struct LockHook;
 
 /// The score of a pick the lock rules out: below anything the game gives.
 pub const LOCKED_SCORE: f32 = -1000.0;
-/// `[draft]` lines per game session at most.
-const MAX_LOG_LINES: u32 = 120;
+/// `[draft]` lines per game session at most: while the ban/pick screen is open (the player's own
+/// match), and from drafts simulated off screen (the other matches of a match day).
+const MAX_LIVE_LINES: u32 = 400;
+const MAX_OFF_SCREEN_LINES: u32 = 30;
 
-static LOG_LINES: Mutex<u32> = Mutex::new(0);
+static LIVE_LINES: AtomicU32 = AtomicU32::new(0);
+static OFF_SCREEN_LINES: AtomicU32 = AtomicU32::new(0);
+/// The ban/pick screen is open (set by `screen`): the drafts now are the player's match.
+static LIVE: AtomicBool = AtomicBool::new(false);
+/// The first hook call of this ban/pick screen was logged.
+static LIVE_FIRST: AtomicBool = AtomicBool::new(false);
 
-fn log_draft(msg: &str) {
-    let mut n = LOG_LINES.lock().unwrap_or_else(PoisonError::into_inner);
-    if *n < MAX_LOG_LINES {
-        *n += 1;
-        diag::log(&format!("[draft] {msg}"));
+/// The ban/pick screen opened or closed.
+pub fn set_live(live: bool) {
+    if LIVE.swap(live, Ordering::Relaxed) != live && live {
+        LIVE_FIRST.store(false, Ordering::Relaxed);
     }
 }
 
-/// One pick decision as the game describes it: the team's picks and the candidates, by name.
-struct View<'a> {
-    ally: Vec<&'a str>,
-    offer: Vec<(usize, &'a str)>,
+fn log_draft(msg: &str) {
+    let (count, max) = if LIVE.load(Ordering::Relaxed) {
+        (&LIVE_LINES, MAX_LIVE_LINES)
+    } else {
+        (&OFF_SCREEN_LINES, MAX_OFF_SCREEN_LINES)
+    };
+    if count.fetch_add(1, Ordering::Relaxed) < max {
+        let place = if LIVE.load(Ordering::Relaxed) { "" } else { "(off screen) " };
+        diag::log(&format!("[draft] {place}{msg}"));
+    }
 }
 
-impl<'a> View<'a> {
-    fn read(ctx: &StableDraftContext<'a>) -> Option<Self> {
-        let ally: Option<Vec<&str>> = ctx.ally_picks().iter().map(|id| ctx.champion_name(*id)).collect();
-        let offer: Option<Vec<(usize, &str)>> =
-            ctx.available_champions().iter().map(|id| Some((*id, ctx.champion_name(*id)?))).collect();
+/// The game's champion table (draft ids index into it), kept from calls that came with it: some
+/// calls give the ids without the table.
+static TABLE: RwLock<Vec<String>> = RwLock::new(Vec::new());
+static NAMELESS_LOGGED: AtomicU32 = AtomicU32::new(0);
+
+fn remember_table(ctx: &StableDraftContext<'_>) {
+    let briefs = ctx.champion_briefs().len();
+    if briefs == 0 || TABLE.read().unwrap_or_else(PoisonError::into_inner).len() == briefs {
+        return;
+    }
+    let names: Vec<String> = (0..briefs).map(|id| ctx.champion_name(id).unwrap_or_default().to_string()).collect();
+    *TABLE.write().unwrap_or_else(PoisonError::into_inner) = names;
+}
+
+fn name_of(ctx: &StableDraftContext<'_>, id: usize) -> Option<String> {
+    ctx.champion_name(id)
+        .filter(|n| !n.is_empty())
+        .map(str::to_string)
+        .or_else(|| TABLE.read().unwrap_or_else(PoisonError::into_inner).get(id).filter(|n| !n.is_empty()).cloned())
+}
+
+/// One pick decision as the game describes it: the team's picks and the candidates, by name.
+struct View {
+    ally: Vec<String>,
+    offer: Vec<(usize, String)>,
+}
+
+impl View {
+    fn read(ctx: &StableDraftContext<'_>) -> Option<Self> {
+        remember_table(ctx);
+        let ally: Option<Vec<String>> = ctx.ally_picks().iter().map(|id| name_of(ctx, *id)).collect();
+        let offer: Option<Vec<(usize, String)>> =
+            ctx.available_champions().iter().map(|id| Some((*id, name_of(ctx, *id)?))).collect();
         match (ally, offer) {
             (Some(ally), Some(offer)) => Some(Self { ally, offer }),
             _ => {
-                diag::log_once(
-                    "draft-names",
-                    "[draft] the game gave champion ids without names: the lock cannot judge the AI's picks",
-                );
+                if NAMELESS_LOGGED.fetch_add(1, Ordering::Relaxed) < 5 {
+                    let missing: Vec<usize> = ctx
+                        .ally_picks()
+                        .iter()
+                        .chain(ctx.available_champions())
+                        .copied()
+                        .filter(|id| name_of(ctx, *id).is_none())
+                        .take(6)
+                        .collect();
+                    diag::log(&format!(
+                        "[draft] champion ids without names - this pick is not judged: ids {missing:?}, \
+                         {} names given, {} kept from earlier calls, {} on offer, team picks {}",
+                        ctx.champion_briefs().len(),
+                        TABLE.read().unwrap_or_else(PoisonError::into_inner).len(),
+                        ctx.available_champions().len(),
+                        ctx.ally_picks().len()
+                    ));
+                }
                 None
             }
         }
@@ -60,8 +115,12 @@ impl<'a> View<'a> {
         format!("{}|{}", self.ally.join(","), self.offer.len())
     }
 
-    fn names(&self) -> Vec<&'a str> {
-        self.offer.iter().map(|(_, n)| *n).collect()
+    fn ally(&self) -> Vec<&str> {
+        self.ally.iter().map(String::as_str).collect()
+    }
+
+    fn names(&self) -> Vec<&str> {
+        self.offer.iter().map(|(_, n)| n.as_str()).collect()
     }
 }
 
@@ -84,7 +143,7 @@ thread_local! {
 
 /// Brings the thread's decision up to date with `view` (a new decision when the team or the offer
 /// changed, or the rules did). Returns whether this is the first look at it.
-fn with_decision<R>(cfg: &config::Config, view: &View<'_>, f: impl FnOnce(&mut Decision, bool) -> R) -> R {
+fn with_decision<R>(cfg: &config::Config, view: &View, f: impl FnOnce(&mut Decision, bool) -> R) -> R {
     CURRENT.with(|cell| {
         let mut d = cell.borrow_mut();
         let key = view.key();
@@ -92,7 +151,8 @@ fn with_decision<R>(cfg: &config::Config, view: &View<'_>, f: impl FnOnce(&mut D
         let fresh = d.key != key || d.rules != rules;
         if fresh {
             let offer = view.names();
-            let ok = if view.ally.len() >= 5 { offer.clone() } else { lanes::pickable_for(cfg, &view.ally, &offer, view.ally.len()) };
+            let ally = view.ally();
+            let ok = if ally.len() >= 5 { offer.clone() } else { lanes::pickable_for(cfg, &ally, &offer, ally.len()) };
             *d = Decision { key, rules, ok: ok.into_iter().map(str::to_string).collect(), ..Decision::default() };
         }
         f(&mut d, fresh)
@@ -116,7 +176,7 @@ impl StableDraftHook for LockHook {
             return StableDraftDecision::Pass;
         }
         let Some(view) = View::read(ctx) else { return StableDraftDecision::Pass };
-        let Some(cand) = ctx.champion_name(candidate) else { return StableDraftDecision::Pass };
+        let Some(cand) = name_of(ctx, candidate) else { return StableDraftDecision::Pass };
         with_decision(&cfg, &view, |d, _| {
             d.scores.insert(candidate, base);
             if !d.logged {
@@ -124,7 +184,7 @@ impl StableDraftHook for LockHook {
                 log_decision(&view, &d.ok);
             }
             // a candidate not on offer (should not happen) is left to the game
-            if !view.offer.iter().any(|(_, n)| *n == cand) || d.ok.iter().any(|c| c == cand) {
+            if !view.offer.iter().any(|(_, n)| *n == cand) || d.ok.contains(&cand) {
                 StableDraftDecision::Pass
             } else {
                 StableDraftDecision::Replace(LOCKED_SCORE)
@@ -148,7 +208,7 @@ impl StableDraftHook for LockHook {
             let pick = choose(&view, &d.ok, &d.scores)?;
             log_draft(&format!(
                 "the game's best-scored candidate does not fit: the lock picks {} instead",
-                view.offer.iter().find(|(id, _)| *id == pick).map_or("?", |(_, n)| n)
+                view.offer.iter().find(|(id, _)| *id == pick).map_or("?", |(_, n)| n.as_str())
             ));
             Some(pick)
         })
@@ -157,7 +217,7 @@ impl StableDraftHook for LockHook {
 
 /// The pick the lock makes: `None` when the game's best-scored candidate fits (the game picks),
 /// else the best-scored candidate that fits.
-fn choose(view: &View<'_>, ok: &[String], scores: &HashMap<usize, f32>) -> Option<usize> {
+fn choose(view: &View, ok: &[String], scores: &HashMap<usize, f32>) -> Option<usize> {
     let fits = |id: usize| view.offer.iter().any(|(i, n)| *i == id && ok.iter().any(|c| c == n));
     let best = |only_fitting: bool| {
         scores
@@ -176,6 +236,15 @@ fn choose(view: &View<'_>, ok: &[String], scores: &HashMap<usize, f32>) -> Optio
 
 /// The first hook call of the session, in full: what the game hands over.
 fn first_call(ctx: &StableDraftContext<'_>, what: &str) {
+    if LIVE.load(Ordering::Relaxed) && !LIVE_FIRST.swap(true, Ordering::Relaxed) {
+        log_draft(&format!(
+            "first call on this ban/pick screen ({what}): {} champion names, {} on offer, team picks {}, enemy picks {}",
+            ctx.champion_briefs().len(),
+            ctx.available_champions().len(),
+            ctx.ally_picks().len(),
+            ctx.enemy_picks().len()
+        ));
+    }
     diag::log_once(&format!("draft-first-{what}"), &{
         let names = ctx.champion_briefs().len();
         let sample: Vec<&str> = ctx.available_champions().iter().take(3).filter_map(|id| ctx.champion_name(*id)).collect();
@@ -192,7 +261,7 @@ fn first_call(ctx: &StableDraftContext<'_>, what: &str) {
     });
 }
 
-fn log_decision(view: &View<'_>, ok: &[String]) {
+fn log_decision(view: &View, ok: &[String]) {
     let out: Vec<&str> = view.names().into_iter().filter(|n| !ok.iter().any(|c| c == n)).collect();
     let team = if view.ally.is_empty() { "nobody yet".to_string() } else { view.ally.join(", ") };
     let ruled = if out.is_empty() {
@@ -240,7 +309,7 @@ mod tests {
 
     #[test]
     fn decides_only_when_the_best_scored_candidate_does_not_fit() {
-        let view = View { ally: vec!["a"], offer: vec![(1, "b"), (2, "c"), (3, "d")] };
+        let view = View { ally: vec!["a".into()], offer: vec![(1, "b".into()), (2, "c".into()), (3, "d".into())] };
         let ok = vec!["c".to_string(), "d".to_string()];
         // the game likes b (does not fit) best: the best of c and d is taken
         let scores: HashMap<usize, f32> = [(1, 9.0), (2, 3.0), (3, 5.0)].into();
