@@ -105,7 +105,8 @@ fn stamp(path: &PathBuf) -> Option<(Option<SystemTime>, u64)> {
 pub fn load_now() {
     let path = path();
     if !path.exists() {
-        match fs::write(&path, TEMPLATE) {
+        // with a BOM, so editors show the Chinese comments right whatever the system language
+        match fs::write(&path, format!("\u{feff}{TEMPLATE}")) {
             Ok(()) => diag::log(&format!("wrote default {}", path.display())),
             Err(err) => diag::log(&format!("cannot write {} ({err}); using built-in defaults", path.display())),
         }
@@ -174,7 +175,8 @@ pub fn parse(text: &str) -> (Config, Vec<String>) {
     let mut warnings = Vec::new();
     let mut section = String::new();
     for (n, raw) in text.lines().enumerate() {
-        let line = raw.split([';', '#']).next().unwrap_or("").trim();
+        // a BOM (Notepad's "UTF-8 with BOM") is not part of the first line
+        let line = raw.trim_start_matches('\u{feff}').split([';', '#']).next().unwrap_or("").trim();
         if line.is_empty() {
             continue;
         }
@@ -251,6 +253,15 @@ mod tests {
         for lane in 0..5 {
             assert!(cfg.overrides.values().filter(|l| l[lane]).count() >= 12, "position {lane}");
         }
+    }
+
+    #[test]
+    fn a_bom_is_not_a_mistake() {
+        let (cfg, warnings) = parse("\u{feff}[lock]\r\nai=off\r\n");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!(!cfg.ai);
+        let (_, warnings) = parse(&format!("\u{feff}{TEMPLATE}"));
+        assert!(warnings.is_empty(), "{warnings:?}");
     }
 
     #[test]
