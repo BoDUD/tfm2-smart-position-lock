@@ -221,6 +221,29 @@ pub fn pickable<'a>(cfg: &Config, team: &[&str], open: &[&'a str]) -> Vec<&'a st
     }
 }
 
+/// Which of the `open` champions an AI team that picked `team` may pick for the player in the
+/// position `lane` - its picks fill the players' slots in position order, so its `k`-th pick
+/// goes to the `k`-th position. Champions that play that position (and keep the team seatable),
+/// else any the team can still seat ([`pickable`]), else all of them.
+pub fn pickable_for<'a>(cfg: &Config, team: &[&str], open: &[&'a str], lane: usize) -> Vec<&'a str> {
+    let played = played();
+    let played = played.as_deref();
+    let lanes: Vec<Lanes> = team.iter().map(|c| allowed(c, cfg, played)).collect();
+    let fit: Vec<&str> = open
+        .iter()
+        .copied()
+        .filter(|c| {
+            let l = allowed(c, cfg, played);
+            lane < 5 && l[lane] && self::legal(&lanes, l)
+        })
+        .collect();
+    if fit.is_empty() {
+        pickable(cfg, team, open)
+    } else {
+        fit
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -273,6 +296,27 @@ pub(crate) mod tests {
         assert_eq!(pickable(&cfg, &["a", "b"], &["c", "d"]), ["c"], "a and b hold mid and support");
         assert_eq!(pickable(&cfg, &["a", "b"], &["d"]), ["d"], "nothing legal: open up");
         assert_eq!(pickable(&cfg, &["a", "b"], &["d", "unknown"]), ["unknown"], "unknown champions play anywhere");
+        clear();
+    }
+
+    #[test]
+    fn an_ai_pick_fits_the_position_it_goes_to() {
+        let _serial = crate::tests::serial();
+        clear();
+        let cfg = Config::default();
+        learn("thresh", [false, false, false, false, true]);
+        learn("garen", TOP);
+        learn("vi", JG);
+        learn("lucian", [false, false, true, true, false]);
+        let open = ["thresh", "garen", "vi", "lucian"];
+        // the first pick goes to the top laner: only garen
+        assert_eq!(pickable_for(&cfg, &[], &open, 0), ["garen"]);
+        // the second to the jungler
+        assert_eq!(pickable_for(&cfg, &["garen"], &open[..], 1), ["vi"]);
+        // the fourth (bottom): lucian
+        assert_eq!(pickable_for(&cfg, &["garen", "vi", "x"], &["thresh", "lucian"], 3), ["lucian"]);
+        // nobody on offer plays jungle: any the team can still seat
+        assert_eq!(pickable_for(&cfg, &["garen"], &["thresh", "lucian"], 1), ["thresh", "lucian"]);
         clear();
     }
 

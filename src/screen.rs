@@ -114,6 +114,8 @@ pub struct Screen {
     reported: bool,
     /// Each side's picks as last checked (see [`Screen::check`]).
     checked: [Vec<String>; 2],
+    /// The players' slot positions were logged for this ban/pick screen.
+    slots_logged: bool,
 }
 
 impl Screen {
@@ -124,6 +126,7 @@ impl Screen {
                 self.on = false;
                 self.covered.clear();
                 self.checked = Default::default();
+                self.slots_logged = false;
                 if std::mem::take(&mut self.unsaved) {
                     lanes::save();
                 }
@@ -143,6 +146,9 @@ impl Screen {
         self.learn(ui, &cards);
 
         self.check(cfg, &cards);
+        if !self.slots_logged {
+            self.slots_logged = log_slots(ui);
+        }
         let side = player_side(ui, team_name);
         let pick_phase = ui.text(HEADER_STEP).is_some_and(|t| t.contains("pick_phase"));
         if !self.reported && !cards.is_empty() {
@@ -248,6 +254,29 @@ impl Screen {
             }
         }
     }
+}
+
+/// The position of each player's pick slot, as the slot's player card says - a team's picks fill
+/// them in order, and the AI lock assumes the order top, jungle, mid, bottom, support. Logged once
+/// per ban/pick screen; true once read.
+fn log_slots(ui: &impl Ui) -> bool {
+    let mut sides = Vec::new();
+    for side in ["blue", "red"] {
+        let lanes: Vec<Option<usize>> = (0..5)
+            .map(|k| {
+                ui.text(&format!("main.{side}_picks.pick_slot_{k}.popup.header.position_name"))
+                    .and_then(|t| t.strip_prefix(POSITION_REF).and_then(lanes::parse_role))
+            })
+            .collect();
+        if lanes.iter().any(Option::is_none) {
+            return false;
+        }
+        let standard = lanes.iter().enumerate().all(|(k, l)| *l == Some(k));
+        let names: Vec<&str> = lanes.iter().flatten().map(|l| lanes::ROLES[*l]).collect();
+        sides.push(format!("{side} {}{}", names.join(","), if standard { "" } else { " (NOT the usual order: AI picks may go to the wrong player)" }));
+    }
+    diag::log(&format!("[ui] pick slots: {}", sides.join("; ")));
+    true
 }
 
 fn shown(ui: &impl Ui, path: &str) -> bool {

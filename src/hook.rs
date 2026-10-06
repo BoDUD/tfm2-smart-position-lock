@@ -1,5 +1,7 @@
-//! The AI's picks. The game scores every candidate itself, then asks the draft hooks; a
-//! candidate the team cannot seat in an open position (`lanes::pickable`) is scored out of reach.
+//! The AI's picks. A team's picks fill its players' slots in position order (top, jungle, mid,
+//! bottom, support - as the ban/pick screen shows them), so its `k`-th pick goes to the player in
+//! the `k`-th position. The game scores every candidate itself, then asks the draft hooks; a
+//! candidate that cannot play that position (`lanes::pickable_for`) is scored out of reach.
 //! As a safety net the hook also decides the pick when the game's best-scored candidate does not
 //! fit: the best-scored one that does is taken instead. Bans are never touched, and nothing is
 //! when every candidate on offer is ruled out - the draft never gets stuck.
@@ -90,7 +92,7 @@ fn with_decision<R>(cfg: &config::Config, view: &View<'_>, f: impl FnOnce(&mut D
         let fresh = d.key != key || d.rules != rules;
         if fresh {
             let offer = view.names();
-            let ok = if view.ally.len() >= 5 { offer.clone() } else { lanes::pickable(cfg, &view.ally, &offer) };
+            let ok = if view.ally.len() >= 5 { offer.clone() } else { lanes::pickable_for(cfg, &view.ally, &offer, view.ally.len()) };
             *d = Decision { key, rules, ok: ok.into_iter().map(str::to_string).collect(), ..Decision::default() };
         }
         f(&mut d, fresh)
@@ -199,7 +201,13 @@ fn log_decision(view: &View<'_>, ok: &[String]) {
         let shown: Vec<&str> = out.iter().take(8).copied().collect();
         format!("ruled out {}: {}{}", out.len(), shown.join(", "), if out.len() > 8 { ", ..." } else { "" })
     };
-    log_draft(&format!("AI pick for a team with {team}: {} on offer, {} fit, {ruled}", view.offer.len(), ok.len()));
+    let lane = lanes::ROLES.get(view.ally.len()).copied().unwrap_or("-");
+    log_draft(&format!(
+        "AI pick {} (for its {lane} player), team so far: {team}; {} on offer, {} fit, {ruled}",
+        view.ally.len() + 1,
+        view.offer.len(),
+        ok.len()
+    ));
 }
 
 /// Whether a team that picked `ally` may pick `cand` out of `available` (tests and tools).

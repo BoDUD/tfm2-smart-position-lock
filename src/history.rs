@@ -53,6 +53,9 @@ pub struct History {
     published_at: Option<Instant>,
     debt: Duration,
     reported: bool,
+    /// The competition records listed when the save was opened: any other is a match played
+    /// this session, and its positions are checked against the lock (see [`check_match`]).
+    at_start: Option<HashSet<usize>>,
 }
 
 impl History {
@@ -119,6 +122,9 @@ impl History {
         for (k, kind) in KINDS.iter().enumerate() {
             let mut ids = src.record_ids(*kind);
             ids.sort_unstable_by(|a, b| b.cmp(a));
+            if k == 0 && self.at_start.is_none() {
+                self.at_start = Some(ids.iter().copied().collect());
+            }
             let mut rechecked = 0;
             for id in ids {
                 if self.queued.contains(&(k, id)) || self.seen[k].contains(&id) {
@@ -164,6 +170,9 @@ impl History {
         }
         self.seen[k].insert(id);
         self.unplayed.remove(&id);
+        if k == 0 && self.at_start.as_ref().is_some_and(|ids| !ids.contains(&id)) {
+            check_match(id, &sides);
+        }
         let mut counted = false;
         for side in &sides {
             for (champ, lane) in players(side) {
@@ -180,6 +189,35 @@ impl History {
             diag::log_once(&format!("unusable-{k}"), &format!("history: a {kind:?} record without positions (id {id})"));
         }
     }
+}
+
+/// A competition match played this session: who played where, after the swap phase - the proof
+/// that the lock held to the end. One `[result]` line in `diag.log`.
+fn check_match(id: usize, sides: &[Value]) {
+    let cfg = crate::config::get();
+    if !cfg.enabled {
+        return;
+    }
+    let played = lanes::played();
+    let mut wrong = Vec::new();
+    let mut total = 0;
+    for (side, team) in ["blue", "red"].iter().zip(sides) {
+        for (champ, lane) in players(team) {
+            let Some(lane) = lane else { continue };
+            total += 1;
+            if !lanes::allowed(&champ, &cfg, played.as_deref())[lane] {
+                wrong.push(format!("{side} {champ} played {}", lanes::ROLES[lane]));
+            }
+        }
+    }
+    if total == 0 {
+        return;
+    }
+    diag::log(&if wrong.is_empty() {
+        format!("[result] match #{id}: all {total} champions played their positions")
+    } else {
+        format!("[result] match #{id}: {} of {total} off their positions - {}", wrong.len(), wrong.join(", "))
+    });
 }
 
 /// The players of one side: (champion, position index). Players are objects with a
@@ -392,6 +430,32 @@ pub(crate) mod tests {
             players(&serde_json::json!({"players": [{"champion": {"name": "x"}, "position": {"Jungle": null}}]})),
             [("x".to_string(), Some(1))]
         );
+        lanes::clear();
+    }
+
+    #[test]
+    fn a_match_played_this_session_is_checked() {
+        let _serial = crate::tests::serial();
+        crate::tests::temp_dir();
+        lanes::clear();
+        crate::config::set(crate::config::Config {
+            overrides: [("thresh".to_string(), [false, false, false, false, true])].into(),
+            ..crate::config::Config::default()
+        });
+        let five = [("garen", "Top"), ("vi", "Jungle"), ("ahri", "Mid"), ("jinx", "Bottom"), ("thresh", "Support")];
+        let mut save = FakeSave { team: Some(1), name: "X".into(), ..Default::default() };
+        save.records.insert((0, 1), comp(&five, &five));
+        let mut h = History::default();
+        run(&mut h, &mut save, 5);
+        // a new match: thresh in the jungle
+        let swapped = [("garen", "Top"), ("thresh", "Jungle"), ("ahri", "Mid"), ("jinx", "Bottom"), ("vi", "Support")];
+        save.records.insert((0, 2), comp(&five, &swapped));
+        h.next_list = None;
+        run(&mut h, &mut save, 5);
+        let log = std::fs::read_to_string(crate::paths::mod_dir().join(crate::diag::LOG_FILE)).unwrap();
+        assert!(!log.contains("match #1"), "a match from before this session is not checked");
+        assert!(log.contains("[result] match #2: 1 of 10 off their positions - red thresh played Jungle"), "{log}");
+        crate::config::set(crate::config::Config::default());
         lanes::clear();
     }
 
