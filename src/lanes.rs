@@ -128,6 +128,14 @@ pub fn main_of(champion: &str) -> Option<Lanes> {
     MAIN.read().unwrap_or_else(PoisonError::into_inner).as_ref()?.get(champion).copied()
 }
 
+/// The champions whose main positions are known (seen on ban/pick cards), by id.
+pub fn known_names() -> Vec<String> {
+    let guard = MAIN.read().unwrap_or_else(PoisonError::into_inner);
+    let mut names: Vec<String> = guard.as_ref().map(|m| m.keys().cloned().collect()).unwrap_or_default();
+    names.sort();
+    names
+}
+
 /// Champions with known main positions.
 pub fn known() -> usize {
     MAIN.read().unwrap_or_else(PoisonError::into_inner).as_ref().map_or(0, HashMap::len)

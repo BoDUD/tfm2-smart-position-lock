@@ -7,10 +7,10 @@
       "version": ">=0.6.0"
     }
   ],
-  "description": "Teams only pick champions that can still take one of their open positions - with nothing to set up. A champion's positions are its two main positions as the game shows them on its ban/pick card (so champion mods' positions just work), plus every position it has really played in your save. Two top-only champions are never picked together; flexible champions are seated where they fit. Holds the AI's picks and your own (cards that do not fit are covered by a lock); bans are free, and when nothing on offer fits the draft just goes on. Your own positions for any champion: settings.ini in the mod folder.\n\n双方只会选还能放进剩余空位的英雄，无需任何设置。英雄能打的位置自动判断：选人卡片上游戏标注的两个主位置（英雄 Mod 设置的位置直接生效），加上你存档里它实际打过的位置。不会同时选两个只能打上路的英雄，能打多个位置的英雄会被安排到合适的位置。AI 和你自己选人都受限制（放不下的英雄卡片会被锁住）；禁用不受限制；没有合适的英雄时自动放开，不会卡住。想手动指定某个英雄的位置：Mod 文件夹里的 settings.ini。",
+  "description": "Teams only pick champions that can still take one of their open positions - with nothing to set up. A champion's positions are its two main positions as the game shows them on its ban/pick card (so champion mods' positions just work), plus every position it has really played in your save. Two top-only champions are never picked together; flexible champions are seated where they fit. Holds the AI's picks and your own (cards that do not fit are covered by a lock); bans are free, and when nothing on offer fits the draft just goes on. Press F7 anywhere for the settings panel: switches, and every champion's positions with one click (saved to settings.ini).\n\n双方只会选还能放进剩余空位的英雄，无需任何设置。英雄能打的位置自动判断：选人卡片上游戏标注的两个主位置（英雄 Mod 设置的位置直接生效），加上你存档里它实际打过的位置。不会同时选两个只能打上路的英雄，能打多个位置的英雄会被安排到合适的位置。AI 和你自己选人都受限制（放不下的英雄卡片会被锁住）；禁用不受限制；没有合适的英雄时自动放开，不会卡住。任何界面按 F7 打开设置面板：开关和每个英雄的位置点一下就改好（自动保存到 settings.ini）。",
   "last_updated": "2026-10-07",
   "mod_id": "smart_position_lock",
   "mod_type": "native",
   "name": "Smart Position Lock",
-  "version": "1.1.0"
+  "version": "1.2.0"
 }

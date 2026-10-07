@@ -20,8 +20,10 @@ mod diag;
 pub mod history;
 pub mod hook;
 pub mod lanes;
+pub mod panel;
 mod paths;
 pub mod screen;
+pub mod ui;
 
 use mod_api_stable::{declare_stable_mod, LogLevel, StableHost, StableMod};
 

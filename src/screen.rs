@@ -16,9 +16,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use mod_api_stable::StableClient;
-
 use crate::config::Config;
+use crate::ui::Ui;
 use crate::{diag, lanes};
 
 pub const GRID: &str = "main.champions.contents";
@@ -29,37 +28,6 @@ const TEAM_NAMES: [&str; 2] = ["main.bottom.blue_side.name", "main.bottom.red_si
 const POSITION_REF: &str = "#asset/base/text/ui?position.";
 /// Frames between two reads of the grid (about 130 cards, a few node reads each).
 const READ_EVERY: u64 = 10;
-
-/// The UI calls the lock needs (the game's client context, or a test double).
-pub trait Ui {
-    fn exists(&self, path: &str) -> bool;
-    fn children(&self, path: &str) -> Vec<String>;
-    fn text(&self, path: &str) -> Option<String>;
-    fn visible(&self, path: &str) -> Option<bool>;
-    fn spawn(&mut self, parent: &str, source: &str) -> bool;
-    fn set_visible(&mut self, path: &str, visible: bool) -> bool;
-}
-
-impl Ui for StableClient<'_> {
-    fn exists(&self, path: &str) -> bool {
-        self.ui_exists(path)
-    }
-    fn children(&self, path: &str) -> Vec<String> {
-        self.ui_child_names(path)
-    }
-    fn text(&self, path: &str) -> Option<String> {
-        self.ui_text(path)
-    }
-    fn visible(&self, path: &str) -> Option<bool> {
-        self.ui_visible(path)
-    }
-    fn spawn(&mut self, parent: &str, source: &str) -> bool {
-        self.ui_spawn_source(parent, source)
-    }
-    fn set_visible(&mut self, path: &str, visible: bool) -> bool {
-        self.ui_set_visible(path, visible)
-    }
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Card {
@@ -327,60 +295,7 @@ pub fn player_side(ui: &impl Ui, team_name: &str) -> Option<usize> {
 pub(crate) mod tests {
     use super::*;
     use crate::lanes::tests::{MID_SUP, TOP};
-    use std::collections::BTreeMap;
-
-    /// A UI tree in memory: nodes by path, with text and visibility.
-    #[derive(Default)]
-    pub struct FakeUi {
-        pub nodes: BTreeMap<String, (Option<String>, bool)>,
-        pub spawns: usize,
-    }
-
-    impl FakeUi {
-        pub fn add(&mut self, path: &str, text: Option<&str>) {
-            self.nodes.insert(path.to_string(), (text.map(str::to_string), true));
-        }
-        fn hide(&mut self, path: &str) {
-            if let Some(n) = self.nodes.get_mut(path) {
-                n.1 = false;
-            }
-        }
-    }
-
-    impl Ui for FakeUi {
-        fn exists(&self, path: &str) -> bool {
-            self.nodes.contains_key(path)
-        }
-        fn children(&self, path: &str) -> Vec<String> {
-            let prefix = format!("{path}.");
-            self.nodes.keys().filter_map(|k| k.strip_prefix(&prefix)).filter(|r| !r.contains('.')).map(str::to_string).collect()
-        }
-        fn text(&self, path: &str) -> Option<String> {
-            self.nodes.get(path)?.0.clone()
-        }
-        fn visible(&self, path: &str) -> Option<bool> {
-            Some(self.nodes.get(path)?.1)
-        }
-        fn spawn(&mut self, parent: &str, source: &str) -> bool {
-            if !self.nodes.contains_key(parent) {
-                return false;
-            }
-            let name = source.split(':').next().unwrap_or_default();
-            self.add(&format!("{parent}.{name}"), None);
-            self.add(&format!("{parent}.{name}.icon"), None);
-            self.spawns += 1;
-            true
-        }
-        fn set_visible(&mut self, path: &str, visible: bool) -> bool {
-            match self.nodes.get_mut(path) {
-                Some(n) => {
-                    n.1 = visible;
-                    true
-                }
-                None => false,
-            }
-        }
-    }
+    use crate::ui::tests::FakeUi;
 
     const CHAMPS: [&str; 6] = ["a", "b", "c", "d", "e", "f"];
 

@@ -12,9 +12,17 @@
 - 和 **Patch Meta AI** 一起用：它的推荐会跳过被锁住的英雄。以前 Patch Meta AI 学到的英雄主位置会自动接过来。
 - 不要和另一个位置锁定 Mod（Champion Position Lock）同时开：两个锁会叠加，英雄要同时满足两边才能选。
 
+## 游戏内设置面板（F7）
+
+任何界面按 **F7** 打开（再按 F7、Esc 或右上角 ✕ 关闭）：
+- 上面四个开关：总开关、锁定 AI 选人、锁定我自己选人、参考存档战绩；
+- 下面是选人界面出现过的所有英雄（每页 24 个，◀ ▶ 翻页）：点某个位置就打开/关闭这个英雄能打的这个位置（绿色 = 能打），改过的英雄标“手动”，点 ↺ 恢复自动判断。
+
+每次点击立即生效，并自动写进 `settings.ini`（文件里的其他内容和注释都保留）。
+
 ## 设置：`settings.ini`
 
-第一次运行时在 Mod 文件夹里自动生成，改完保存几秒内生效，不用重启。
+第一次运行时在 Mod 文件夹里自动生成，改完保存几秒内生效，不用重启。上面的面板改的就是这个文件，也可以直接编辑。
 
 | 段落 | 键 | 默认 | 作用 |
 |---|---|---|---|
@@ -39,7 +47,7 @@ Mod 文件夹里的 `diag.log` 记录了 Mod 读到了什么，以及锁有没�
 
 ## English
 
-Teams only pick champions that can still take one of their open positions - nothing to set up. A champion's positions are its two main positions as the game shows them on its ban/pick card (so a champion mod's positions just work), learned on the ban/pick screen and kept in `positions.json`, plus every position it has really played in your save (`min_games` games, `share` of them there). A pick is legal when the team's picks and the candidate can still be seated one per position. The AI's picks are held to it by a draft score hook; your own by a lock over each card that does not fit, which takes the click. Bans are free, and when nothing on offer fits, everything does - a draft never gets stuck. Your own positions for any champion go in `settings.ini` (`[positions]`, e.g. `ahri=Mid,Support`).
+Teams only pick champions that can still take one of their open positions - nothing to set up. A champion's positions are its two main positions as the game shows them on its ban/pick card (so a champion mod's positions just work), learned on the ban/pick screen and kept in `positions.json`, plus every position it has really played in your save (`min_games` games, `share` of them there). A pick is legal when the team's picks and the candidate can still be seated one per position. The AI's picks are held to it by a draft score hook; your own by a lock over each card that does not fit, which takes the click. Bans are free, and when nothing on offer fits, everything does - a draft never gets stuck. Your own positions for any champion go in `settings.ini` (`[positions]`, e.g. `ahri=Mid,Support`) - or press **F7** in game for a settings panel that writes them for you.
 
 - Build with `cargo build --release` (Windows) or `tools/build.sh` (packages `dist/smart_position_lock-<version>.zip`).
 - MIT licensed. `vendor/mod-api-stable` is TeamSamoyed's SDK.

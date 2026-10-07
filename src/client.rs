@@ -10,6 +10,7 @@ use mod_api_stable::{ClientSceneKindV1, RecordKindV1, StableClient, StableExtens
 use crate::config;
 use crate::history::{History, Source};
 use crate::screen::Screen;
+use crate::ui::Ui;
 
 struct ClientSource<'a, 'b> {
     ctx: &'a mut StableClient<'b>,
@@ -35,6 +36,7 @@ struct State {
     frame: u64,
     history: History,
     screen: Screen,
+    panel: crate::panel::Panel,
     /// The save's champion ids (cards are named by them), and the save they were read for.
     champions: HashSet<String>,
     champions_for: Option<(usize, String)>,
@@ -75,5 +77,10 @@ impl StableExtension for ClientExt {
         let champions = &st.champions;
         let known = |c: &str| champions.contains(c);
         st.screen.tick(ctx, st.frame, &team_name, &known, &cfg);
+        // the settings panel (F7), on any screen
+        let keys = ctx.keys_pressed();
+        let clicks = crate::ui::take_clicks();
+        let scene = format!("{:?}", ctx.client_scene_kind());
+        st.panel.tick(ctx, st.frame, &scene, &keys, &clicks);
     }
 }

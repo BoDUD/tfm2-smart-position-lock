@@ -172,6 +172,100 @@ fn decode(bytes: &[u8]) -> String {
     }
 }
 
+/// Changes one setting in `settings.ini` - `key` in `[section]` set to `value`, or removed with
+/// `None` - keeping every other line, comment and the line's own trailing comment, then reads the
+/// file again. False when the file could not be written.
+pub fn write_value(section: &str, key: &str, value: Option<&str>) -> bool {
+    let path = path();
+    let old = fs::read(&path).map(|b| decode(&b)).unwrap_or_else(|_| TEMPLATE.to_string());
+    let text = edit(&old, section, key, value);
+    // UTF-8 with a BOM, so editors show the Chinese comments right whatever the system language
+    let ok = fs::write(&path, format!("\u{feff}{}", text.trim_start_matches('\u{feff}'))).is_ok();
+    if ok {
+        let mut watch = WATCH.lock().unwrap_or_else(PoisonError::into_inner);
+        watch.stamp = stamp(&path);
+        drop(watch);
+        reload(&path);
+    } else {
+        diag::log(&format!("could not write {}", path.display()));
+    }
+    ok
+}
+
+/// `write_value` on text: the edited text, its line endings kept.
+pub fn edit(text: &str, section: &str, key: &str, value: Option<&str>) -> String {
+    let newline = if text.contains("\r\n") { "\r\n" } else { "\n" };
+    let mut lines: Vec<String> = text.split('\n').map(|l| l.trim_end_matches('\r').to_string()).collect();
+    let header = |l: &str| {
+        let t = l.trim_start_matches('\u{feff}').trim();
+        (t.starts_with('[') && t.ends_with(']')).then(|| t[1..t.len() - 1].trim().to_ascii_lowercase())
+    };
+    let key_of = |l: &str| {
+        let t = l.trim_start_matches('\u{feff}').trim();
+        if t.starts_with(';') || t.starts_with('#') {
+            return None;
+        }
+        t.split_once('=').map(|(k, _)| k.trim().to_ascii_lowercase())
+    };
+    let want = section.to_ascii_lowercase();
+    let start = match lines.iter().position(|l| header(l).as_deref() == Some(want.as_str())) {
+        Some(i) => i,
+        None => {
+            if value.is_none() {
+                return text.to_string();
+            }
+            while lines.last().is_some_and(|l| l.trim().is_empty()) {
+                lines.pop();
+            }
+            lines.push(String::new());
+            lines.push(format!("[{section}]"));
+            lines.len() - 1
+        }
+    };
+    let end = (start + 1..lines.len()).find(|i| header(&lines[*i]).is_some()).unwrap_or(lines.len());
+    let key_lower = key.to_ascii_lowercase();
+    let found = (start + 1..end).find(|i| key_of(&lines[*i]).as_deref() == Some(key_lower.as_str()));
+    match (found, value) {
+        (Some(i), Some(v)) => {
+            let line = lines[i].clone();
+            let left = line.split_once('=').map_or(key, |(k, _)| k).trim_end().to_string();
+            let core = format!("{left}={v}");
+            // the line's own comment stays, at the same column when there is room
+            lines[i] = match line.find([';', '#']) {
+                Some(column) => format!("{core:<width$}{}", &line[column..], width = column.max(core.len() + 1)),
+                None => core,
+            };
+        }
+        (Some(i), None) => {
+            lines.remove(i);
+        }
+        (None, Some(v)) => {
+            // after the section's last setting (before its trailing blank lines)
+            let mut at = end;
+            while at > start + 1 && lines[at - 1].trim().is_empty() {
+                at -= 1;
+            }
+            lines.insert(at, format!("{key}={v}"));
+        }
+        (None, None) => {}
+    }
+    lines.join(newline)
+}
+
+/// A switch of the settings panel: `enabled` / `ai` / `player` (in `[lock]`) or `history`.
+pub fn write_switch(key: &str, on: bool) -> bool {
+    let section = if key == "history" { "history" } else { "lock" };
+    write_value(section, key, Some(if on { "on" } else { "off" }))
+}
+
+/// A champion's own positions (`[positions]`), or `None` to go back to working them out.
+pub fn write_positions(champion: &str, lanes: Option<Lanes>) -> bool {
+    let value = lanes.map(|l| {
+        crate::lanes::ROLES.iter().enumerate().filter(|(i, _)| l[*i]).map(|(_, r)| *r).collect::<Vec<_>>().join(",")
+    });
+    write_value("positions", champion, value.as_deref())
+}
+
 /// Test support.
 #[doc(hidden)]
 pub fn set(cfg: Config) {
@@ -269,6 +363,50 @@ mod tests {
         for lane in 0..5 {
             assert!(cfg.overrides.values().filter(|l| l[lane]).count() >= 12, "position {lane}");
         }
+    }
+
+    #[test]
+    fn one_setting_is_changed_and_nothing_else() {
+        let file = "\u{feff}; head\r\n[lock]\r\nai=on ; AI picks\r\nplayer=on\r\n\r\n[positions]\r\n; comment\r\nleague_ahri=Mid        ; 阿狸\r\n\r\n";
+        // a switch, its comment kept
+        let t = edit(file, "lock", "ai", Some("off"));
+        assert!(t.contains("ai=off ; AI picks\r\n"), "{t:?}");
+        assert!(t.contains("player=on\r\n") && t.starts_with("\u{feff}; head\r\n"));
+        // a champion: changed (its Chinese name kept, in its column), added, removed
+        let t = edit(file, "positions", "LEAGUE_AHRI", Some("Mid,Support"));
+        assert!(t.contains("league_ahri=Mid,Support ; 阿狸"), "{t:?}");
+        let t2 = edit(file, "positions", "league_ahri", Some("Top"));
+        assert!(t2.contains("league_ahri=Top        ; 阿狸"), "same column: {t2:?}");
+        let t = edit(&t, "positions", "league_zed", Some("Mid"));
+        assert!(t.contains("; 阿狸\r\nleague_zed=Mid\r\n"), "after the last setting: {t:?}");
+        let t = edit(&t, "positions", "league_ahri", None);
+        assert!(!t.contains("league_ahri") && t.contains("league_zed=Mid"));
+        let (cfg, warnings) = parse(&t);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert_eq!(cfg.override_of("league_zed"), Some([false, false, true, false, false]));
+        // a section that is not there yet
+        let t = edit("[lock]\nai=on\n", "history", "history", Some("off"));
+        assert_eq!(t, "[lock]\nai=on\n\n[history]\nhistory=off");
+        assert_eq!(edit("[lock]\n", "history", "x", None), "[lock]\n", "removing what is not there");
+    }
+
+    #[test]
+    fn writing_reloads_the_settings() {
+        let _serial = crate::tests::serial();
+        crate::tests::temp_dir();
+        let _ = fs::remove_file(path());
+        load_now();
+        assert!(get().ai);
+        assert!(write_switch("ai", false));
+        assert!(!get().ai, "in effect at once");
+        assert!(write_positions("league_ahri", Some([false, false, true, false, true])));
+        assert_eq!(get().override_of("league_ahri"), Some([false, false, true, false, true]));
+        assert!(write_positions("league_ahri", None));
+        assert_eq!(get().override_of("league_ahri"), None);
+        let bytes = fs::read(path()).unwrap();
+        assert!(bytes.starts_with(&[0xEF, 0xBB, 0xBF]), "written with a BOM");
+        let _ = fs::remove_file(path());
+        set(Config::default());
     }
 
     #[test]
