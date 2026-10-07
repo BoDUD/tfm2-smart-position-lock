@@ -137,7 +137,7 @@ pub fn refresh(now: Instant) {
 
 fn reload(path: &PathBuf) {
     let (cfg, warnings) = match fs::read(path) {
-        Ok(bytes) => parse(&String::from_utf8_lossy(&bytes)),
+        Ok(bytes) => parse(&decode(&bytes)),
         Err(_) => (Config::default(), Vec::new()),
     };
     for warning in &warnings {
@@ -154,6 +154,22 @@ fn reload(path: &PathBuf) {
         cfg.overrides.len()
     ));
     *CURRENT.write().unwrap_or_else(PoisonError::into_inner) = Some(Arc::new(cfg));
+}
+
+/// The file's text: UTF-8 (with or without a BOM), or UTF-16 as Notepad's "Unicode" saves it.
+fn decode(bytes: &[u8]) -> String {
+    let utf16 = |little: bool| {
+        let units: Vec<u16> = bytes[2..]
+            .chunks_exact(2)
+            .map(|c| if little { u16::from_le_bytes([c[0], c[1]]) } else { u16::from_be_bytes([c[0], c[1]]) })
+            .collect();
+        String::from_utf16_lossy(&units)
+    };
+    match bytes {
+        [0xFF, 0xFE, ..] => utf16(true),
+        [0xFE, 0xFF, ..] => utf16(false),
+        _ => String::from_utf8_lossy(bytes).into_owned(),
+    }
 }
 
 /// Test support.
@@ -246,13 +262,29 @@ mod tests {
     fn the_league_preset_reads_cleanly() {
         let (cfg, warnings) = parse(include_str!("../presets/league_positions.ini"));
         assert!(warnings.is_empty(), "{warnings:?}");
-        assert_eq!(cfg.overrides.len(), 68);
+        assert_eq!(cfg.overrides.len(), 71);
         assert_eq!(cfg.override_of("league_ahri"), Some([false, false, true, false, false]));
         assert_eq!(cfg.override_of("league_vayne"), Some([true, false, false, true, false]));
         // every position has plenty of champions
         for lane in 0..5 {
             assert!(cfg.overrides.values().filter(|l| l[lane]).count() >= 12, "position {lane}");
         }
+    }
+
+    #[test]
+    fn utf16_settings_are_read() {
+        let text = "[lock]
+ai=off
+[positions]
+league_ahri=Mid ; 阿狸
+";
+        let mut le = vec![0xFF, 0xFE];
+        le.extend(text.encode_utf16().flat_map(u16::to_le_bytes));
+        let (cfg, warnings) = parse(&decode(&le));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!(!cfg.ai);
+        assert_eq!(cfg.override_of("league_ahri"), Some([false, false, true, false, false]));
+        assert_eq!(decode("ai=off".as_bytes()), "ai=off");
     }
 
     #[test]

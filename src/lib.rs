@@ -21,7 +21,6 @@ pub mod history;
 pub mod hook;
 pub mod lanes;
 mod paths;
-mod probe;
 pub mod screen;
 
 use mod_api_stable::{declare_stable_mod, LogLevel, StableHost, StableMod};

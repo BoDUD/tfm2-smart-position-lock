@@ -3,7 +3,7 @@
 # tools/build.sh cross-compiles the same DLL (x86_64-pc-windows-gnu) and packages the mod folder.
 [package]
 name = "smart_position_lock"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 license = "MIT"
 publish = false
@@ -13,7 +13,7 @@ description = "Teamfight Manager 2 mod: teams only pick champions that fit an op
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# The game's stable-ABI SDK (mod-sdk-stable/mod-api-stable as shipped with game 0.6.2, ABI level 9).
+# The game's stable-ABI SDK (mod-sdk-stable/mod-api-stable as shipped with game 0.6.3, ABI level 9; unchanged since 0.6.2).
 mod-api-stable = { path = "vendor/mod-api-stable" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

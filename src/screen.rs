@@ -122,16 +122,7 @@ impl Screen {
     /// One frame. `team_name` is the player's team, `known` tells champion ids from other nodes.
     pub fn tick(&mut self, ui: &mut impl Ui, frame: u64, team_name: &str, known: &dyn Fn(&str) -> bool, cfg: &Config) {
         if !ui.exists(GRID) {
-            if self.on {
-                self.on = false;
-                crate::hook::set_live(false);
-                self.covered.clear();
-                self.checked = Default::default();
-                self.slots_logged = false;
-                if std::mem::take(&mut self.unsaved) {
-                    lanes::save();
-                }
-            }
+            self.close();
             return;
         }
         if !self.on {
@@ -201,6 +192,22 @@ impl Screen {
         }
     }
 
+    /// The ban/pick screen closed (or the game was left from it): positions learned on it are
+    /// saved, and the hook no longer logs drafts as the player's.
+    pub fn close(&mut self) {
+        if !self.on {
+            return;
+        }
+        self.on = false;
+        crate::hook::set_live(false);
+        self.covered.clear();
+        self.checked = Default::default();
+        self.slots_logged = false;
+        if std::mem::take(&mut self.unsaved) {
+            lanes::save();
+        }
+    }
+
     /// Whether each side's picks can still be seated one per position - for the AI's picks the
     /// proof that the draft hook holds the lock. Written to `diag.log` whenever a side picks.
     fn check(&mut self, cfg: &Config, cards: &[Card]) {
@@ -249,6 +256,10 @@ impl Screen {
                 if let Some(r) = text.strip_prefix(POSITION_REF).and_then(lanes::parse_role) {
                     found[r] = true;
                 }
+            }
+            if found == [false; 5] {
+                // the tooltip is not filled yet: look again on the next read
+                continue;
             }
             self.learned.insert(c.champ.clone());
             if lanes::learn(&c.champ, found) {

@@ -27,7 +27,7 @@
 
 ## 英雄联盟英雄（league Mod）
 
-league Mod 没有给英雄设置位置，选人卡片上显示的大多是“上路+打野”，自动判断用不上。[`presets/league_positions.ini`](presets/league_positions.ini) 按英雄联盟官方主位置整理好了全部 68 个英雄：把它的内容复制到 `settings.ini` 的 `[positions]` 段即可，每行后面有中文名，想改哪个英雄直接改。
+league Mod 没有给英雄设置位置，选人卡片上显示的大多是“上路+打野”，自动判断用不上。[`presets/league_positions.ini`](presets/league_positions.ini) 按英雄联盟官方主位置整理好了全部 71 个英雄：把它的内容复制到 `settings.ini` 的 `[positions]` 段即可，每行后面有中文名，想改哪个英雄直接改。
 
 ## 出问题时
 

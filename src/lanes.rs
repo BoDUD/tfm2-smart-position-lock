@@ -223,20 +223,14 @@ pub fn pickable<'a>(cfg: &Config, team: &[&str], open: &[&'a str]) -> Vec<&'a st
 
 /// Which of the `open` champions an AI team that picked `team` may pick for the player in the
 /// position `lane` - its picks fill the players' slots in position order, so its `k`-th pick
-/// goes to the `k`-th position. Champions that play that position (and keep the team seatable),
-/// else any the team can still seat ([`pickable`]), else all of them.
+/// goes to the `k`-th position, and the earlier picks already sit in theirs (even one that had to
+/// be let through off its positions). Champions that play that position, else any the team can
+/// still seat ([`pickable`]), else all of them.
 pub fn pickable_for<'a>(cfg: &Config, team: &[&str], open: &[&'a str], lane: usize) -> Vec<&'a str> {
+    // (the team only matters for the fallback)
     let played = played();
     let played = played.as_deref();
-    let lanes: Vec<Lanes> = team.iter().map(|c| allowed(c, cfg, played)).collect();
-    let fit: Vec<&str> = open
-        .iter()
-        .copied()
-        .filter(|c| {
-            let l = allowed(c, cfg, played);
-            lane < 5 && l[lane] && self::legal(&lanes, l)
-        })
-        .collect();
+    let fit: Vec<&str> = open.iter().copied().filter(|c| lane < 5 && allowed(c, cfg, played)[lane]).collect();
     if fit.is_empty() {
         pickable(cfg, team, open)
     } else {
@@ -317,6 +311,10 @@ pub(crate) mod tests {
         assert_eq!(pickable_for(&cfg, &["garen", "vi", "x"], &["thresh", "lucian"], 3), ["lucian"]);
         // nobody on offer plays jungle: any the team can still seat
         assert_eq!(pickable_for(&cfg, &["garen"], &["thresh", "lucian"], 1), ["thresh", "lucian"]);
+        // a first pick that had to go off its position (vi in the top slot) does not take the
+        // jungle from the second: a jungler still goes to the jungler
+        learn("nocturne", JG);
+        assert_eq!(pickable_for(&cfg, &["vi"], &["nocturne", "thresh"], 1), ["nocturne"]);
         clear();
     }
 

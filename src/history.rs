@@ -55,6 +55,8 @@ pub struct History {
     published_at: Option<Instant>,
     debt: Duration,
     reported: bool,
+    /// Records that could not be read yet, and how often that happened (given up after a few).
+    failed: HashMap<(usize, usize), u8>,
     /// The competition records listed when the save was opened, but the newest few: any other is
     /// a match played since, and its positions are checked against the lock (see [`check_match`]).
     at_start: Option<HashSet<usize>>,
@@ -156,12 +158,10 @@ impl History {
                 return;
             }
         }
-        let mut sides: Vec<Value> = ["blue_team", "red_team"]
-            .iter()
-            .filter_map(|p| src.record_json(kind, id, p))
-            .filter_map(|j| serde_json::from_str(&j).ok())
-            .collect();
-        if sides.len() < 2 {
+        let part = |src: &mut dyn FnMut(&str) -> Option<String>, p: &str| src(p).and_then(|j| serde_json::from_str::<Value>(&j).ok());
+        let mut get = |p: &str| src.record_json(kind, id, p);
+        let mut sides: [Option<Value>; 2] = [part(&mut get, "blue_team"), part(&mut get, "red_team")];
+        if sides.iter().any(Option::is_none) {
             // a host that does not read parts of a record: the whole of it
             let doc: Option<Value> = src.record_json(kind, id, "").and_then(|j| serde_json::from_str(&j).ok());
             if let Some(doc) = doc {
@@ -169,16 +169,25 @@ impl History {
                     self.unplayed.insert(id);
                     return;
                 }
-                sides = ["blue_team", "red_team"].iter().filter_map(|p| doc.get(*p).cloned()).collect();
+                sides = [doc.get("blue_team").cloned(), doc.get("red_team").cloned()];
             }
         }
+        if sides.iter().all(Option::is_none) {
+            // nothing readable now: looked at again on a later listing, a few times at most
+            let tries = self.failed.entry((k, id)).or_insert(0);
+            *tries += 1;
+            if *tries < 3 {
+                return;
+            }
+        }
+        self.failed.remove(&(k, id));
         self.seen[k].insert(id);
         self.unplayed.remove(&id);
         if k == 0 && self.at_start.as_ref().is_some_and(|ids| !ids.contains(&id)) {
             check_match(id, &sides);
         }
         let mut counted = false;
-        for side in &sides {
+        for side in sides.iter().flatten() {
             for (champ, lane) in players(side) {
                 if let Some(lane) = lane {
                     self.counts.entry(champ).or_insert([0; 5])[lane] += 1;
@@ -197,7 +206,7 @@ impl History {
 
 /// A competition match played this session: who played where, after the swap phase - the proof
 /// that the lock held to the end. One `[result]` line in `diag.log`.
-fn check_match(id: usize, sides: &[Value]) {
+fn check_match(id: usize, sides: &[Option<Value>; 2]) {
     let cfg = crate::config::get();
     if !cfg.enabled {
         return;
@@ -206,6 +215,7 @@ fn check_match(id: usize, sides: &[Value]) {
     let mut wrong = Vec::new();
     let mut total = 0;
     for (side, team) in ["blue", "red"].iter().zip(sides) {
+        let Some(team) = team else { continue };
         for (champ, lane) in players(team) {
             let Some(lane) = lane else { continue };
             total += 1;
