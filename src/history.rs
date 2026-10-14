@@ -67,6 +67,7 @@ impl History {
     pub fn reset(&mut self) {
         *self = Self::default();
         lanes::set_played(None);
+        crate::athletes::clear();
     }
 
     /// One frame: who the save is, what to read, a few records, and publishing the counts.
@@ -81,6 +82,8 @@ impl History {
                 }
                 *self = Self { save: identity, next_identity: self.next_identity, ..Self::default() };
                 lanes::set_played(None);
+                // athlete ids are per save
+                crate::athletes::clear();
             }
         }
         if self.save.is_none() || !read {
@@ -186,6 +189,12 @@ impl History {
         if k == 0 && self.at_start.as_ref().is_some_and(|ids| !ids.contains(&id)) {
             check_match(id, &sides);
         }
+        if k == 0 {
+            // the players of the save's matches: their proficiency is read before the next drafts
+            for side in sides.iter().flatten() {
+                crate::athletes::played(&athlete_ids(side));
+            }
+        }
         let mut counted = false;
         for side in sides.iter().flatten() {
             for (champ, lane) in players(side) {
@@ -247,6 +256,32 @@ pub fn players(team: &Value) -> Vec<(String, Option<usize>)> {
             p.1 = Some(lane);
         }
     }
+    out
+}
+
+/// The athletes of one side: each player's `athlete_id` (ban lists are skipped).
+pub fn athlete_ids(team: &Value) -> Vec<usize> {
+    fn walk(v: &Value, out: &mut Vec<usize>, depth: usize) {
+        match v {
+            Value::Object(map) if depth <= 6 => {
+                if champion(map).is_some() {
+                    if let Some(id) = map.get("athlete_id").and_then(Value::as_u64) {
+                        out.push(id as usize);
+                    }
+                    return;
+                }
+                for (key, child) in map {
+                    if !key.contains("ban") {
+                        walk(child, out, depth + 1);
+                    }
+                }
+            }
+            Value::Array(items) if depth <= 6 => items.iter().for_each(|i| walk(i, out, depth + 1)),
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    walk(team, &mut out, 0);
     out
 }
 
@@ -343,7 +378,11 @@ pub(crate) mod tests {
         pub reads: usize,
     }
 
+    /// Records by kind: 0 competition matches, 1 solo-rank games, 2 athletes.
     fn kind_index(kind: RecordKindV1) -> usize {
+        if kind == RecordKindV1::Athlete {
+            return 2;
+        }
         KINDS.iter().position(|k| *k == kind).unwrap_or(9)
     }
 
@@ -444,6 +483,31 @@ pub(crate) mod tests {
             players(&serde_json::json!({"players": [{"champion": {"name": "x"}, "position": {"Jungle": null}}]})),
             [("x".to_string(), Some(1))]
         );
+        lanes::clear();
+    }
+
+    #[test]
+    fn the_players_of_the_save_s_matches_are_wanted_for_their_proficiency() {
+        let _serial = crate::tests::serial();
+        crate::tests::temp_dir();
+        lanes::clear();
+        crate::athletes::clear();
+        let five = [("a", "Top"), ("b", "Jungle"), ("c", "Mid"), ("d", "Bottom"), ("e", "Support")];
+        let doc = comp(&five, &five);
+        // comp() gives every player athlete 1; the bans carry none
+        assert_eq!(athlete_ids(&doc["blue_team"]), [1, 1, 1, 1, 1]);
+        assert!(athlete_ids(&doc["blue_ban"]).is_empty());
+        let mut save = FakeSave { team: Some(1), name: "X".into(), ..Default::default() };
+        save.records.insert((0, 1), doc);
+        save.records.insert((2, 1), crate::athletes::tests::record(1, "Kiin", 0, &[("a", 300)]));
+        let mut h = History::default();
+        run(&mut h, &mut save, 5);
+        // the client reads it
+        let mut reader = crate::athletes::Reader::default();
+        reader.tick(&mut save, Instant::now(), true);
+        let kiin = crate::athletes::lineup(&[1])[0].clone().expect("read");
+        assert_eq!(kiin.skill("a"), 300);
+        crate::athletes::clear();
         lanes::clear();
     }
 

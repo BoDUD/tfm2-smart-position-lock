@@ -12,12 +12,14 @@
 //!   stuck. Bans are never restricted;
 //! - the AI's picks are held to it by a draft score hook, and once an AI team's picks are in, the
 //!   same hook seats them on its players' lanes (`decide_positions`, game 0.6.4+) - the game would
-//!   otherwise seat them by its own judgement ([`hook`]); the player's own picks are held by a lock
+//!   otherwise seat them by its own judgement ([`hook`]); of equally good seatings, the one whose
+//!   players play their champions best ([`athletes`]); the player's own picks are held by a lock
 //!   over each card that does not fit, which takes the click ([`screen`]).
 //!
 //! Nothing in a callback may panic: every lock tolerates poisoning and lists are never indexed
 //! with positions from an earlier call.
 
+pub mod athletes;
 mod client;
 pub mod compat;
 pub mod config;

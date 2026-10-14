@@ -11,22 +11,27 @@
 //!   positions it has seen the champions played in, whatever the pick order - so a champion
 //!   picked as a top laner can end up in support. The lock seats the picks itself
 //!   (`lanes::seat`): every champion in a position it can play wherever possible, in its main
-//!   position when it has a choice, else in its own pick slot. When nothing is known about any
-//!   of the picks, the game's assignment stays. Older games never ask: they seat AI teams
+//!   position when it has a choice; of seatings equal in both, the one whose players (the
+//!   line-up the game hands over, `ally_athletes`, in lane-slot order) play their champions best
+//!   by the game's champion proficiency ([`athletes`]) - when every one of them has been read -
+//!   else the one that leaves the most picks in their own pick slot. When nothing is known about
+//!   any of the picks, the game's assignment stays. Older games never ask: they seat AI teams
 //!   themselves.
 //!
 //! What the game hands over and what the lock did goes to `diag.log`: `[draft]` lines (the first
 //! calls in full, then one line per AI pick) and `[seat]` lines (each AI team's picks in pick
-//! order and the lanes they were given); `[result]` lines (`history`) then say where every
-//! champion really played.
+//! order and the lanes and players they were given, with the proficiency used, and whether the
+//! line-up's players sit in the slots of their best positions); `[result]` lines (`history`) then
+//! say where every champion really played.
 
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
-use std::sync::{PoisonError, RwLock};
+use std::sync::{Arc, PoisonError, RwLock};
 
 use mod_api_stable::{StableDraftContext, StableDraftDecision, StableDraftHook};
 
+use crate::athletes::{self, Athlete};
 use crate::lanes::{self, Lanes};
 use crate::{config, diag};
 
@@ -181,6 +186,9 @@ struct Decision {
 
 impl Decision {
     fn build(ctx: &StableDraftContext<'_>, cfg: &config::Config, key: u64) -> Self {
+        // the line-ups of this draft: their proficiency is read before the teams are seated
+        athletes::fielded(ctx.ally_athletes());
+        athletes::fielded(ctx.enemy_athletes());
         let Some(view) = View::read(ctx) else { return Self { key: Some(key), ok: None } };
         let offer = view.names();
         let ally = view.ally();
@@ -239,6 +247,8 @@ impl StableDraftHook for LockHook {
             diag::log_once("seat-off", "[seat] the lock or its AI switch is off: the game seats AI teams itself");
             return None;
         }
+        athletes::fielded(ctx.ally_athletes());
+        athletes::fielded(ctx.enemy_athletes());
         remember_table(ctx);
         let Some(names) = ctx.ally_picks().iter().map(|id| name_of(ctx, *id)).collect::<Option<Vec<String>>>() else {
             log_seat(&format!("{team}: champion ids without names {:?} - the game seats it itself", ctx.ally_picks()));
@@ -246,14 +256,45 @@ impl StableDraftHook for LockHook {
         };
         let picks: Vec<&str> = names.iter().map(String::as_str).collect();
         let slots: Vec<usize> = ctx.slot_lanes().iter().map(|l| l.code() as usize).collect();
-        let plan = plan_seats(&cfg, &picks, &slots);
+        let lineup = Lineup::read(ctx.ally_athletes(), &picks, slots.len());
+        let plan = plan_seats(&cfg, &picks, &slots, lineup.skill.as_deref());
         if !ctx.is_explore() {
-            log_seat(&format!("{team}: {}", describe_plan(&cfg, &plan, &picks, &slots)));
+            log_seat(&format!("{team}: {}", describe_plan(&cfg, &plan, &picks, &slots, &lineup)));
+            check_lineup_order(&team, &lineup, &slots);
         }
         match plan {
             Plan::Seat(seating) => Some(seating.order),
             Plan::Keep(_) => None,
         }
+    }
+}
+
+/// The players an AI team fields, in lane-slot order, as far as the lock knows them.
+pub struct Lineup {
+    /// Athlete ids as the game gave them (empty: no line-up, e.g. an older game).
+    pub ids: Vec<usize>,
+    /// What is known of each (`None`: not read yet).
+    pub players: Vec<Option<Arc<Athlete>>>,
+    /// `skill[slot][pick]`: the proficiency of each slot's player with each pick, when every
+    /// player is known.
+    pub skill: Option<Vec<Vec<u32>>>,
+}
+
+impl Lineup {
+    /// The line-up `ids` for a team that picked `picks` and fills `slots` lane slots.
+    pub fn read(ids: &[usize], picks: &[&str], slots: usize) -> Self {
+        let players = athletes::lineup(ids);
+        let complete = !players.is_empty() && players.len() == slots && players.iter().all(Option::is_some);
+        let skill = complete.then(|| players.iter().flatten().map(|p| picks.iter().map(|c| p.skill(c)).collect()).collect());
+        Self { ids: ids.to_vec(), players, skill }
+    }
+
+    fn label(&self, slot: usize) -> Option<String> {
+        let id = *self.ids.get(slot)?;
+        Some(match self.players.get(slot).and_then(Option::as_ref) {
+            Some(p) => p.label(id),
+            None => format!("#{id}"),
+        })
     }
 }
 
@@ -276,8 +317,9 @@ pub enum Plan {
 }
 
 /// How a team that picked `picks` (champion ids in pick order) sits on the lane slots `slots`
-/// (each slot's position index): the lock's seating when it knows where any of them may play.
-pub fn plan_seats(cfg: &config::Config, picks: &[&str], slots: &[usize]) -> Plan {
+/// (each slot's position index): the lock's seating when it knows where any of them may play;
+/// `skill` (the slots' players' proficiency with each pick) chooses between equally good ones.
+pub fn plan_seats(cfg: &config::Config, picks: &[&str], slots: &[usize], skill: Option<&[Vec<u32>]>) -> Plan {
     let mut five = slots.to_vec();
     five.sort_unstable();
     if five != [0, 1, 2, 3, 4] {
@@ -292,34 +334,109 @@ pub fn plan_seats(cfg: &config::Config, picks: &[&str], slots: &[usize]) -> Plan
     if held.iter().all(|(l, _)| *l == [true; 5]) {
         return Plan::Keep("nothing is known about where these champions play");
     }
-    match lanes::seat(&held, slots) {
+    match lanes::seat(&held, slots, skill) {
         Some(seating) => Plan::Seat(seating),
         None => Plan::Keep("no seating found"),
     }
 }
 
-/// One `[seat]` line: the picks in pick order with their positions, then the lanes they got.
-fn describe_plan(cfg: &config::Config, plan: &Plan, picks: &[&str], slots: &[usize]) -> String {
+/// One `[seat]` line: the picks in pick order with their positions, then the lane and player
+/// each got (with the player's proficiency with it), and what the proficiency did.
+fn describe_plan(cfg: &config::Config, plan: &Plan, picks: &[&str], slots: &[usize], lineup: &Lineup) -> String {
     let played = lanes::played();
     let held: Vec<Lanes> = picks.iter().map(|c| lanes::allowed(c, cfg, played.as_deref())).collect();
     let picked: Vec<String> = picks.iter().zip(&held).map(|(c, l)| format!("{c} ({})", lanes::describe(l))).collect();
     let picked = if picked.is_empty() { "none".to_string() } else { picked.join(", ") };
-    match plan {
-        Plan::Keep(why) => format!("picks in pick order: {picked} - {why}: the game seats them itself"),
-        Plan::Seat(s) => {
-            let seated: Vec<String> = s
-                .order
-                .iter()
-                .zip(slots)
-                .map(|(pick, lane)| {
-                    let off = if held[*pick][*lane] { "" } else { " (off its positions)" };
-                    format!("{} {}{off}", lanes::ROLES[*lane], picks[*pick])
-                })
-                .collect();
-            let all = if s.fits == picks.len() { "all".to_string() } else { format!("{} of", s.fits) };
-            format!("picks in pick order: {picked} -> seated: {}; {all} {} in their positions", seated.join(", "), picks.len())
+    let s = match plan {
+        Plan::Keep(why) => return format!("picks in pick order: {picked} - {why}: the game seats them itself"),
+        Plan::Seat(s) => s,
+    };
+    let seated: Vec<String> = s
+        .order
+        .iter()
+        .zip(slots)
+        .enumerate()
+        .map(|(slot, (pick, lane))| {
+            let off = if held[*pick][*lane] { "" } else { " (off its positions)" };
+            let player = match (lineup.label(slot), lineup.players.get(slot).and_then(Option::as_ref)) {
+                (Some(label), Some(p)) => format!(" [{label}: {}]", p.skill(picks[*pick])),
+                (Some(label), None) => format!(" [{label}]"),
+                _ => String::new(),
+            };
+            format!("{} {}{off}{player}", lanes::ROLES[*lane], picks[*pick])
+        })
+        .collect();
+    let all = if s.fits == picks.len() { "all".to_string() } else { format!("{} of", s.fits) };
+    let skill = match &lineup.skill {
+        _ if lineup.ids.is_empty() => "no line-up from the game: players' proficiency not used".to_string(),
+        None if lineup.ids.len() != slots.len() => {
+            format!("players' proficiency not used: a line-up of {} players for {} lane slots", lineup.ids.len(), slots.len())
         }
+        None => {
+            let unknown = lineup.players.iter().filter(|p| p.is_none()).count();
+            format!("players' proficiency not used: {unknown} of {} players not read yet", lineup.players.len())
+        }
+        Some(rows) => {
+            let total = |order: &[usize]| -> u64 { order.iter().enumerate().map(|(slot, pick)| u64::from(rows[slot][*pick])).sum() };
+            match plan_seats(cfg, picks, slots, None) {
+                Plan::Seat(plain) if plain.order != s.order => format!(
+                    "players' proficiency {} chose this seating over an equally good one ({})",
+                    s.skill,
+                    total(&plain.order)
+                ),
+                _ => format!("players' proficiency {} (the same seating without it)", s.skill),
+            }
+        }
+    };
+    format!("picks in pick order: {picked} -> seated: {}; {all} {} in their positions; {skill}", seated.join(", "), picks.len())
+}
+
+/// Line-ups whose order was checked against the players' best positions (logged), and the ones
+/// that did not match (logged too, up to a limit).
+static ORDER_CHECKED: AtomicU32 = AtomicU32::new(0);
+static ORDER_MISMATCHED: AtomicU32 = AtomicU32::new(0);
+const MAX_ORDER_CHECKS: u32 = 3;
+const MAX_ORDER_MISMATCHES: u32 = 10;
+
+/// Whether the line-up the game handed over is in lane-slot order: each player sits in the slot
+/// of the position he is rated best in (a substitute out of his position would not). Logged for
+/// the first line-ups whose ratings are all known, and for every one that does not match.
+fn check_lineup_order(team: &str, lineup: &Lineup, slots: &[usize]) {
+    if lineup.ids.is_empty() || lineup.ids.len() != slots.len() {
+        if !lineup.ids.is_empty() {
+            diag::log_once("lineup-size", &format!("[seat] {team}: a line-up of {} players for {} lane slots", lineup.ids.len(), slots.len()));
+        }
+        return;
     }
+    let best: Option<Vec<usize>> = lineup.players.iter().map(|p| p.as_ref()?.best_lane()).collect();
+    let Some(best) = best else { return };
+    let matched = best.iter().zip(slots).all(|(b, s)| b == s);
+    let (count, max) = if matched { (&ORDER_CHECKED, MAX_ORDER_CHECKS) } else { (&ORDER_MISMATCHED, MAX_ORDER_MISMATCHES) };
+    if count.fetch_add(1, Ordering::Relaxed) >= max {
+        return;
+    }
+    let seats: Vec<String> = slots
+        .iter()
+        .zip(&best)
+        .enumerate()
+        .map(|(slot, (lane, b))| {
+            let label = lineup.label(slot).unwrap_or_default();
+            if b == lane {
+                format!("{} {label}", lanes::ROLES[*lane])
+            } else {
+                format!("{} {label} (rated best {})", lanes::ROLES[*lane], lanes::ROLES[*b])
+            }
+        })
+        .collect();
+    diag::log(&format!(
+        "[seat] {team}'s line-up by lane slot: {} - {}",
+        seats.join(", "),
+        if matched {
+            "every player sits in the slot of his best position: the line-up is in lane-slot order"
+        } else {
+            "NOT every player sits in the slot of his best position (another order, or a player out of his position)"
+        }
+    ));
 }
 
 static FIRST_BAN: AtomicBool = AtomicBool::new(false);
@@ -397,6 +514,7 @@ mod tests {
     use super::*;
     use crate::lanes::tests::{MID_SUP, TOP};
     use mod_api_stable::{ChampionBriefV1, DraftCtxV1, DraftPhaseV1, LaneV1, StrV1};
+    use std::collections::HashMap;
 
     #[test]
     fn rules_out_picks_no_open_position_can_take() {
@@ -421,6 +539,7 @@ mod tests {
         _ally: Vec<usize>,
         _available: Vec<usize>,
         _slots: Vec<u32>,
+        athletes: Vec<usize>,
         raw: DraftCtxV1,
     }
 
@@ -459,7 +578,15 @@ mod tests {
                 slot_lanes_ptr: slots.as_ptr(),
                 slot_lanes_len: slots.len(),
             };
-            Self { _names: names, _briefs: briefs, _ally: ally, _available: available, _slots: slots, raw }
+            Self { _names: names, _briefs: briefs, _ally: ally, _available: available, _slots: slots, athletes: Vec::new(), raw }
+        }
+
+        /// The team's line-up (athlete ids in lane-slot order).
+        fn with_lineup(mut self, ids: &[usize]) -> Self {
+            self.athletes = ids.to_vec();
+            self.raw.ally_athletes_ptr = self.athletes.as_ptr();
+            self.raw.ally_athletes_len = self.athletes.len();
+            self
         }
 
         fn ctx(&self) -> StableDraftContext<'_> {
@@ -514,6 +641,88 @@ mod tests {
         assert!(log().contains("team #63 (yours): picks in pick order"), "the player's team is named");
         assert!(log().contains("Bottom league_briar (off its positions), Support league_seraphine; 4 of 5 in their positions"));
         set_player_team(None);
+        lanes::clear();
+    }
+
+    /// A player rated `best` in one position, with these proficiencies.
+    fn player(name: &str, best: usize, proficiency: &[(&str, u32)]) -> Athlete {
+        let mut lanes = [0.0; 5];
+        lanes[best] = 90.0;
+        Athlete {
+            name: name.to_string(),
+            proficiency: proficiency.iter().map(|(c, v)| (c.to_string(), *v)).collect(),
+            lanes: Some(lanes),
+        }
+    }
+
+    #[test]
+    fn of_equally_good_seatings_each_champion_goes_to_the_player_who_plays_it_best() {
+        let _serial = crate::tests::serial();
+        crate::tests::temp_dir();
+        lanes::clear();
+        athletes::clear();
+        config::set(config::Config::default());
+        set_live(false);
+        set_player_team(None);
+        ORDER_CHECKED.store(0, Ordering::Relaxed);
+        ORDER_MISMATCHED.store(0, Ordering::Relaxed);
+        // Akali and Yasuo both play mid and top (main: mid): one of them goes top either way
+        let table = ["league_akali", "league_viego", "league_yasuo", "league_varus", "league_bard"];
+        let lineup = [598, 599, 600, 601, 602];
+        let seat = |ids: &[usize]| {
+            let draft = FakeDraft::new(DraftPhaseV1::Position, &table, &table, &[], &LANES).with_lineup(ids);
+            LockHook.decide_positions(&draft.ctx())
+        };
+        // nobody read yet: exactly as without players (pick slots: Akali top, Yasuo mid)
+        assert_eq!(seat(&lineup), Some(vec![0, 1, 2, 3, 4]));
+        assert!(log().contains("players' proficiency not used: 5 of 5 players not read yet"), "{}", log());
+        assert!(athletes::lineup(&lineup).iter().all(Option::is_none));
+        // the top laner plays Yasuo far better than Akali, the mid laner the other way round
+        let players = HashMap::from([
+            (598, player("Kiin", 0, &[("league_akali", 200), ("league_yasuo", 380)])),
+            (599, player("Canyon", 1, &[("league_viego", 300)])),
+            (600, player("Chovy", 2, &[("league_akali", 350), ("league_yasuo", 250)])),
+            (601, player("Ruler", 3, &[("league_varus", 300)])),
+            (602, player("Lehends", 4, &[("league_bard", 300)])),
+        ]);
+        athletes::set(players.clone());
+        assert_eq!(seat(&lineup), Some(vec![2, 1, 0, 3, 4]), "Yasuo top, Akali mid");
+        let text = log();
+        assert!(
+            text.contains(
+                "-> seated: Top league_yasuo [Kiin (#598): 380], Jungle league_viego [Canyon (#599): 300], \
+                 Mid league_akali [Chovy (#600): 350], Bottom league_varus [Ruler (#601): 300], Support league_bard \
+                 [Lehends (#602): 300]; all 5 in their positions; players' proficiency 1630 chose this seating over \
+                 an equally good one (1350)"
+            ),
+            "{text}"
+        );
+        assert!(
+            text.contains(
+                "[seat] team #63's line-up by lane slot: Top Kiin (#598), Jungle Canyon (#599), Mid Chovy (#600), \
+                 Bottom Ruler (#601), Support Lehends (#602) - every player sits in the slot of his best position"
+            ),
+            "{text}"
+        );
+        // one player not read: exactly as without players
+        let mut four = players.clone();
+        four.remove(&600);
+        athletes::set(four);
+        assert_eq!(seat(&lineup), Some(vec![0, 1, 2, 3, 4]));
+        assert!(log().contains("players' proficiency not used: 1 of 5 players not read yet"));
+        // no line-up (an older game, or the game does not know it): exactly as without players
+        athletes::set(players);
+        assert_eq!(seat(&[]), Some(vec![0, 1, 2, 3, 4]));
+        assert!(log().contains("no line-up from the game: players' proficiency not used"));
+        // a line-up in another order is seen in the log (and seated by it: Chovy, the mid laner,
+        // still plays Akali better)
+        assert_eq!(seat(&[599, 598, 600, 601, 602]), Some(vec![2, 1, 0, 3, 4]));
+        assert!(
+            log().contains("Top Canyon (#599) (rated best Jungle), Jungle Kiin (#598) (rated best Top)") && log().contains("NOT every player"),
+            "{}",
+            log()
+        );
+        athletes::clear();
         lanes::clear();
     }
 

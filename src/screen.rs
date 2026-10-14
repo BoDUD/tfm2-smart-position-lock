@@ -160,6 +160,11 @@ impl Screen {
         }
     }
 
+    /// The ban/pick screen is open.
+    pub fn is_on(&self) -> bool {
+        self.on
+    }
+
     /// The ban/pick screen closed (or the game was left from it): positions learned on it are
     /// saved, and the hook no longer logs drafts as the player's.
     pub fn close(&mut self) {

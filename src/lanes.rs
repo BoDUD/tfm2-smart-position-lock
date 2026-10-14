@@ -322,8 +322,16 @@ pub struct Seating {
     pub fits: usize,
     /// ... in their main position.
     pub mains: usize,
+    /// The players' proficiency with the champions they were given, in all (0 without players).
+    pub skill: u64,
     /// Picks left in their own pick slot (the `k`-th pick in the `k`-th slot) and able to play it.
     pub kept: usize,
+}
+
+impl Seating {
+    fn rank(&self) -> (usize, usize, u64, usize) {
+        (self.fits, self.mains, self.skill, self.kept)
+    }
 }
 
 /// The most picks [`seat`] seats (it tries every order).
@@ -331,49 +339,56 @@ pub const MAX_SEATS: usize = 7;
 
 /// The best seating of a team's picks - each one's positions and main position, in pick order -
 /// on lane slots (each slot's position index): the most picks in a position they can play, then
-/// the most in their main position, then the most left in their own pick slot; of equals, the
-/// first in order (earlier picks in earlier slots - so of two champions for one position, the
-/// earlier pick gets it). `None` when the counts differ, there are no picks or more than
-/// [`MAX_SEATS`], or a slot is not a position.
-pub fn seat(picks: &[(Lanes, Option<usize>)], slots: &[usize]) -> Option<Seating> {
+/// the most in their main position; of seatings equal in both, the one whose players play their
+/// champions best (`skill[slot][pick]`: how well the player of lane slot `slot` plays pick
+/// `pick`, the game's champion proficiency - left out when `None` or not one row per slot and
+/// one value per pick), then the most picks left in their own pick slot; of equals, the first in
+/// order (earlier picks in earlier slots - so of two champions for one position, the earlier pick
+/// gets it). Proficiency only ever chooses between seatings that are equal by the first two, so
+/// it never seats a champion off its positions. `None` when the counts differ, there are no
+/// picks or more than [`MAX_SEATS`], or a slot is not a position.
+pub fn seat(picks: &[(Lanes, Option<usize>)], slots: &[usize], skill: Option<&[Vec<u32>]>) -> Option<Seating> {
     let n = picks.len();
     if n == 0 || n != slots.len() || n > MAX_SEATS || slots.iter().any(|s| *s >= 5) {
         return None;
     }
-    fn walk(
-        slot: usize,
-        picks: &[(Lanes, Option<usize>)],
-        slots: &[usize],
-        order: &mut Vec<usize>,
-        used: &mut [bool; MAX_SEATS],
-        best: &mut Option<Seating>,
-    ) {
-        if slot == slots.len() {
-            let mut s = Seating { order: order.clone(), fits: 0, mains: 0, kept: 0 };
-            for (slot, (pick, lane)) in order.iter().zip(slots).enumerate() {
-                let (lanes, main) = picks[*pick];
-                s.fits += usize::from(lanes[*lane]);
-                s.mains += usize::from(main == Some(*lane));
-                s.kept += usize::from(*pick == slot && lanes[*lane]);
+    let skill = skill.filter(|rows| rows.len() == n && rows.iter().all(|r| r.len() == n));
+    struct Search<'a> {
+        picks: &'a [(Lanes, Option<usize>)],
+        slots: &'a [usize],
+        skill: Option<&'a [Vec<u32>]>,
+        order: Vec<usize>,
+        used: [bool; MAX_SEATS],
+        best: Option<Seating>,
+    }
+    fn walk(s: &mut Search<'_>, slot: usize) {
+        if slot == s.slots.len() {
+            let mut seating = Seating { order: s.order.clone(), fits: 0, mains: 0, skill: 0, kept: 0 };
+            for (slot, (pick, lane)) in s.order.iter().zip(s.slots).enumerate() {
+                let (lanes, main) = s.picks[*pick];
+                seating.fits += usize::from(lanes[*lane]);
+                seating.mains += usize::from(main == Some(*lane));
+                seating.skill += s.skill.map_or(0, |rows| u64::from(rows[slot][*pick]));
+                seating.kept += usize::from(*pick == slot && lanes[*lane]);
             }
-            if best.as_ref().is_none_or(|b| (s.fits, s.mains, s.kept) > (b.fits, b.mains, b.kept)) {
-                *best = Some(s);
+            if s.best.as_ref().is_none_or(|b| seating.rank() > b.rank()) {
+                s.best = Some(seating);
             }
             return;
         }
-        for pick in 0..picks.len() {
-            if !used[pick] {
-                used[pick] = true;
-                order.push(pick);
-                walk(slot + 1, picks, slots, order, used, best);
-                order.pop();
-                used[pick] = false;
+        for pick in 0..s.picks.len() {
+            if !s.used[pick] {
+                s.used[pick] = true;
+                s.order.push(pick);
+                walk(s, slot + 1);
+                s.order.pop();
+                s.used[pick] = false;
             }
         }
     }
-    let mut best = None;
-    walk(0, picks, slots, &mut Vec::with_capacity(n), &mut [false; MAX_SEATS], &mut best);
-    best
+    let mut search = Search { picks, slots, skill, order: Vec::with_capacity(n), used: [false; MAX_SEATS], best: None };
+    walk(&mut search, 0);
+    search.best
 }
 
 #[cfg(test)]
@@ -452,13 +467,13 @@ pub(crate) mod tests {
         // match #4 of the save in the 1.2.0 logs, blue: the game put Garen in the support slot,
         // Seraphine bottom and Varus top - every champion has a position of its own free
         let blue = [(TOP, Some(0)), (SUP_MID, Some(4)), (BOT, Some(3)), (TOP_JG, None), (MID_SUP, Some(2))];
-        let s = seat(&blue, &FIVE).unwrap();
+        let s = seat(&blue, &FIVE, None).unwrap();
         assert_eq!(s.order, [0, 3, 4, 2, 1], "top garen, jungle syndra, mid annie, bottom varus, support seraphine");
         assert_eq!((s.fits, s.mains), (5, 4));
         // the same match, red: two junglers (Viego and Briar) - one of them has to go off its
         // position, the other keeps its pick slot; Yasuo plays his main position (mid)
         let red = [(SUP, Some(4)), (JG, Some(1)), (BOT, Some(3)), (MID_TOP, Some(2)), (JG, Some(1))];
-        let s = seat(&red, &FIVE).unwrap();
+        let s = seat(&red, &FIVE, None).unwrap();
         assert_eq!(s.order, [4, 1, 3, 2, 0], "top briar (off), jungle viego, mid yasuo, bottom twitch, support taric");
         assert_eq!((s.fits, s.mains, s.kept), (4, 4, 1));
     }
@@ -467,19 +482,48 @@ pub(crate) mod tests {
     fn seating_prefers_main_positions_then_pick_slots() {
         // Yasuo (mid, top) picked first, Kayle (top, mid) third: each plays its main position
         let picks = [(MID_TOP, Some(2)), (JG, None), (TOP_MID, Some(0)), (BOT, None), (SUP, None)];
-        assert_eq!(seat(&picks, &FIVE).unwrap().order, [2, 1, 0, 3, 4]);
+        assert_eq!(seat(&picks, &FIVE, None).unwrap().order, [2, 1, 0, 3, 4]);
         // nothing to tell two flexible champions apart: they keep their pick slots
         let picks = [(TOP_MID, None), (JG, None), (TOP_MID, None), (BOT, None), (SUP, None)];
-        assert_eq!(seat(&picks, &FIVE).unwrap().order, FIVE);
+        assert_eq!(seat(&picks, &FIVE, None).unwrap().order, FIVE);
         // slots in another order: every champion still goes to its own position
         let picks = [(TOP, None), (JG, None), (MID, None), (BOT, None), (SUP, None)];
-        let s = seat(&picks, &[4, 3, 2, 1, 0]).unwrap();
+        let s = seat(&picks, &[4, 3, 2, 1, 0], None).unwrap();
         assert_eq!((s.order, s.fits), (vec![4, 3, 2, 1, 0], 5));
         // nothing seatable
-        assert_eq!(seat(&picks, &FIVE[..4]), None, "five picks, four slots");
-        assert_eq!(seat(&[], &[]), None);
-        assert_eq!(seat(&picks[..1], &[5]), None, "not a position");
-        assert_eq!(seat(&[(TOP, None); 8], &[0; 8]), None, "too many to try every order");
+        assert_eq!(seat(&picks, &FIVE[..4], None), None, "five picks, four slots");
+        assert_eq!(seat(&[], &[], None), None);
+        assert_eq!(seat(&picks[..1], &[5], None), None, "not a position");
+        assert_eq!(seat(&[(TOP, None); 8], &[0; 8], None), None, "too many to try every order");
+    }
+
+    /// `skill[slot][pick]` from one row per slot.
+    fn skill(rows: &[[u32; 5]]) -> Vec<Vec<u32>> {
+        rows.iter().map(|r| r.to_vec()).collect()
+    }
+
+    #[test]
+    fn of_equally_good_seatings_the_players_proficiency_decides() {
+        // Akali and Yasuo both play mid and top (main: mid): one of them goes top either way
+        let picks = [(MID_TOP, Some(2)), (JG, None), (MID_TOP, Some(2)), (BOT, None), (SUP, None)];
+        assert_eq!(seat(&picks, &FIVE, None).unwrap().order, FIVE, "without players: pick slots");
+        // the top laner plays the third pick (Yasuo) far better than the first (Akali)
+        let rows = skill(&[[200, 0, 380, 0, 0], [0, 300, 0, 0, 0], [350, 0, 250, 0, 0], [0, 0, 0, 300, 0], [0, 0, 0, 0, 300]]);
+        let s = seat(&picks, &FIVE, Some(&rows)).unwrap();
+        assert_eq!(s.order, [2, 1, 0, 3, 4], "Yasuo top, Akali mid");
+        assert_eq!((s.fits, s.mains, s.skill, s.kept), (5, 1, 380 + 300 + 350 + 300 + 300, 3));
+        // proficiency never seats a champion off its positions, nor out of its main position
+        let picks = [(TOP, Some(0)), (JG, Some(1)), (MID_TOP, Some(2)), (BOT, None), (SUP, None)];
+        let rows = skill(&[[0, 0, 999, 0, 0], [999, 0, 0, 0, 0], [0, 999, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]);
+        let s = seat(&picks, &FIVE, Some(&rows)).unwrap();
+        assert_eq!((s.order, s.fits, s.mains), (FIVE.to_vec(), 5, 3));
+        // a matrix that is not one row per slot and one value per pick is left out
+        let picks = [(MID_TOP, Some(2)), (JG, None), (MID_TOP, Some(2)), (BOT, None), (SUP, None)];
+        let short = skill(&[[0, 0, 999, 0, 0]; 4]);
+        assert_eq!(seat(&picks, &FIVE, Some(&short)), seat(&picks, &FIVE, None));
+        // nothing known about the players (all zero): exactly the seating without them
+        let zero = skill(&[[0; 5]; 5]);
+        assert_eq!(seat(&picks, &FIVE, Some(&zero)).unwrap().order, seat(&picks, &FIVE, None).unwrap().order);
     }
 
     pub const TOP_MID: Lanes = [true, false, true, false, false];
