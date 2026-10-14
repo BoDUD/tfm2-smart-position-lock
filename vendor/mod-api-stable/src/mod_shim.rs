@@ -17,12 +17,13 @@ use crate::{
     ActionRegV1, ActionVtableV1, AiCtxV1, AiDecisionKindV1, AiInitV1, BuffV1, ChampionRegV1,
     ChampionVtableV1, ClientCtxV1, CommandResultV1, DraftCtxV1, DraftDecisionKindV1,
     DraftHookRegV1, DraftHookVtableV1, EffectSpecV1, EffectTypeRegV1, EffectTypeVtableV1,
-    ExtensionRegV1, ExtensionVtableV1, InputTargetV1, InputV1, ItemRegV1, ItemVtableV1,
-    PassiveRegV1, PassiveVtableV1, PlayerAiRegV1, PlayerAiVtableV1, ServerCtxV1, ServerExtRegV1,
-    ServerExtVtableV1, SimCtxV1, StableAction, StableAiContext, StableAiInit, StableChampion,
-    StableClient, StableCommand, StableDraftContext, StableDraftDecision, StableDraftHook,
-    StableEffectType, StableExtension, StableItem, StablePassive, StablePlayerAi,
-    StableServerCtx, StableServerExtension, StableSim, StatV1, StrV1,
+    EntityViewV1, ExtensionRegV1, ExtensionVtableV1, InputTargetV1, InputV1, ItemRegV1,
+    ItemVtableV1, PassiveRegV1, PassiveVtableV1, PlayerAiRegV1, PlayerAiVtableV1, ServerCtxV1,
+    ServerExtRegV1, ServerExtVtableV1, SimCtxV1, StableAction, StableAiContext, StableAiInit,
+    StableChampion, StableClient, StableCommand, StableDraftContext, StableDraftDecision,
+    StableDraftHook, StableEffectType, StableEntityView, StableExtension, StableItem,
+    StablePassive, StablePlayerAi, StableServerCtx, StableServerExtension, StableSim, StatV1,
+    StrV1,
 };
 
 /// catch_unwind with a default result — every extern shim body goes through
@@ -279,6 +280,44 @@ unsafe extern "C" fn action_description(userdata: *const c_void) -> StrV1 {
     guarded(StrV1::EMPTY, || StrV1::from_str(&action(userdata).description))
 }
 
+// A gate that cannot run (no sim, mod panic) lets the AI proceed, as a host
+// without the slot would.
+unsafe extern "C" fn action_can_activate(
+    userdata: *const c_void,
+    sim: *mut SimCtxV1,
+    caster: usize,
+) -> bool {
+    guarded(true, || match unsafe { StableSim::from_raw(sim) } {
+        Some(sim) => action(userdata).inner.can_activate(&sim, caster),
+        None => true,
+    })
+}
+
+unsafe extern "C" fn action_target_constraint(
+    userdata: *const c_void,
+    sim: *mut SimCtxV1,
+    caster: usize,
+    target: usize,
+) -> bool {
+    guarded(true, || match unsafe { StableSim::from_raw(sim) } {
+        Some(sim) => action(userdata).inner.target_constraint(&sim, caster, target),
+        None => true,
+    })
+}
+
+unsafe extern "C" fn action_can_use_with_move_ex(
+    userdata: *const c_void,
+    caster: *const EntityViewV1,
+) -> bool {
+    guarded(false, || {
+        let inner = &action(userdata).inner;
+        match unsafe { StableEntityView::from_raw(caster) } {
+            Some(view) => inner.can_use_with_move_by(&view),
+            None => inner.can_use_with_move(),
+        }
+    })
+}
+
 static ACTION_VTABLE: ActionVtableV1 = ActionVtableV1 {
     size: size_of::<ActionVtableV1>(),
     destroy: Some(action_destroy),
@@ -292,6 +331,9 @@ static ACTION_VTABLE: ActionVtableV1 = ActionVtableV1 {
     cooltime_use_count: Some(action_cooltime_use_count),
     can_use_with_move: Some(action_can_use_with_move),
     description: Some(action_description),
+    can_activate: Some(action_can_activate),
+    target_constraint: Some(action_target_constraint),
+    can_use_with_move_ex: Some(action_can_use_with_move_ex),
 };
 
 fn action_to_reg(inner: Box<dyn StableAction>) -> ActionRegV1 {
@@ -428,6 +470,25 @@ unsafe extern "C" fn effect_linear_move_speed(userdata: *const c_void, out: *mut
     })
 }
 
+unsafe extern "C" fn effect_may_adjust_range(userdata: *const c_void) -> bool {
+    guarded(false, || effect_type(userdata).inner.may_adjust_range())
+}
+
+unsafe extern "C" fn effect_range_adjust(
+    userdata: *const c_void,
+    caster: *const EntityViewV1,
+    target: *const EntityViewV1,
+) -> u64 {
+    guarded(0, || {
+        let (Some(caster), Some(target)) =
+            (unsafe { StableEntityView::from_raw(caster) }, unsafe { StableEntityView::from_raw(target) })
+        else {
+            return 0;
+        };
+        effect_type(userdata).inner.range_adjust(&caster, &target)
+    })
+}
+
 static EFFECT_TYPE_VTABLE: EffectTypeVtableV1 = EffectTypeVtableV1 {
     size: size_of::<EffectTypeVtableV1>(),
     destroy: Some(effect_destroy),
@@ -443,6 +504,8 @@ static EFFECT_TYPE_VTABLE: EffectTypeVtableV1 = EffectTypeVtableV1 {
     on_caster: Some(effect_on_caster),
     can_move: Some(effect_can_move),
     linear_move_speed: Some(effect_linear_move_speed),
+    may_adjust_range: Some(effect_may_adjust_range),
+    range_adjust: Some(effect_range_adjust),
 };
 
 pub(crate) fn effect_type_to_reg(inner: Box<dyn StableEffectType>) -> EffectTypeRegV1 {
@@ -601,6 +664,18 @@ unsafe extern "C" fn passive_on_dead(userdata: *mut c_void, sim: *mut SimCtxV1, 
     with_sim!(sim, |s: &mut StableSim<'_>| passive_mut(userdata).inner.on_dead(s, player));
 }
 
+unsafe extern "C" fn passive_on_unit_kill(
+    userdata: *mut c_void,
+    sim: *mut SimCtxV1,
+    player: usize,
+    entity: usize,
+    victim: usize,
+) {
+    with_sim!(sim, |s: &mut StableSim<'_>| {
+        passive_mut(userdata).inner.on_unit_kill(s, player, entity, victim)
+    });
+}
+
 static PASSIVE_VTABLE: PassiveVtableV1 = PassiveVtableV1 {
     size: size_of::<PassiveVtableV1>(),
     destroy: Some(passive_destroy),
@@ -615,6 +690,7 @@ static PASSIVE_VTABLE: PassiveVtableV1 = PassiveVtableV1 {
     on_dead: Some(passive_on_dead),
     on_kill_ex: Some(passive_on_kill_ex),
     configure: Some(passive_configure),
+    on_unit_kill: Some(passive_on_unit_kill),
 };
 
 pub(crate) fn passive_to_reg(inner: Box<dyn StablePassive>) -> PassiveRegV1 {
@@ -1269,6 +1345,29 @@ unsafe extern "C" fn draft_hook_decide_pick(
     })
 }
 
+unsafe extern "C" fn draft_hook_decide_positions(
+    userdata: *const c_void,
+    ctx: *const DraftCtxV1,
+    out_order: *mut usize,
+    cap: usize,
+) -> usize {
+    guarded(0, || {
+        let Some(ctx) = (unsafe { StableDraftContext::from_raw(ctx) }) else {
+            return 0;
+        };
+        let Some(order) = draft_hook(userdata).inner.decide_positions(&ctx) else {
+            return 0;
+        };
+        if out_order.is_null() {
+            return 0;
+        }
+        for (i, pick_index) in order.iter().take(cap).enumerate() {
+            unsafe { *out_order.add(i) = *pick_index };
+        }
+        order.len().min(cap)
+    })
+}
+
 static DRAFT_HOOK_VTABLE: DraftHookVtableV1 = DraftHookVtableV1 {
     size: size_of::<DraftHookVtableV1>(),
     destroy: Some(draft_hook_destroy),
@@ -1278,6 +1377,7 @@ static DRAFT_HOOK_VTABLE: DraftHookVtableV1 = DraftHookVtableV1 {
     score_pick: Some(draft_hook_score_pick),
     decide_ban: Some(draft_hook_decide_ban),
     decide_pick: Some(draft_hook_decide_pick),
+    decide_positions: Some(draft_hook_decide_positions),
 };
 
 pub(crate) fn draft_hook_to_reg(inner: Box<dyn StableDraftHook>) -> DraftHookRegV1 {

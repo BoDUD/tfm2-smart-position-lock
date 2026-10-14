@@ -5,8 +5,9 @@
 use std::mem::size_of;
 
 use crate::{
-    AttackTypeV1, BuffV1, CcV1, EntityHandleV1, FrameVtableV1, KillLogV1, LaneV1,
-    PlayerHandleV1, ProjectileHandleV1, ProjectileInfoV1, SimCtxV1, SimVtableV1, StatV1,
+    AttackTypeV1, BuffV1, CcV1, CooldownV1, EntityHandleV1, EntityKindV1, EntityViewV1,
+    EntityViewVtableV1, FrameVtableV1, KillLogV1, LaneV1, PlayerHandleV1, ProjectileHandleV1,
+    ProjectileInfoV1, SimCtxV1, SimVtableV1, SkillSlotV1, StatV1,
 };
 
 /// Size-guarded view over the per-callback simulation context. Valid only
@@ -309,6 +310,17 @@ impl<'a> StableSim<'a> {
         })
     }
 
+    /// Takes `ticks` off one action slot's remaining cooldown, floored at
+    /// ready — e.g. "casting Q cuts W by 60 ticks", "getting hit cuts the ult
+    /// by a second". Only that slot changes; with charges, freed time refills
+    /// charges the same way natural cooldown does. `false` for non-champions,
+    /// in read-only contexts, or on hosts older than ABI level 10.
+    pub fn entity_reduce_cooldown(&mut self, entity_id: usize, slot: SkillSlotV1, ticks: usize) -> bool {
+        slot!(self.sim(), SimVtableV1, entity_reduce_cooldown).map_or(false, |f| unsafe {
+            f(self.state(), EntityHandleV1::from_id(entity_id), slot.code(), ticks)
+        })
+    }
+
     /// Damage with an explicit type; `DamageTypeV1::Fixed` is true damage that
     /// still earns statistics, kill credit and procs.
     pub fn deal_damage_typed(
@@ -588,6 +600,21 @@ impl StableEntity<'_, '_> {
         unsafe { f(self.sim.state(), self.handle, index, &mut out) }.then_some(out)
     }
 
+    /// Coarse entity kind — tells a jungle camp from a minion, an epic
+    /// monster or a summon. `None` on hosts older than ABI level 10.
+    pub fn kind(&self) -> Option<EntityKindV1> {
+        let f = slot!(self.sim.sim(), SimVtableV1, entity_kind)?;
+        EntityKindV1::from_code(unsafe { f(self.sim.state(), self.handle) })
+    }
+
+    /// Cooldown and charges of one action slot (champions only). `None` for
+    /// other entities or on hosts older than ABI level 10.
+    pub fn cooldown(&self, slot: SkillSlotV1) -> Option<CooldownV1> {
+        let f = slot!(self.sim.sim(), SimVtableV1, entity_cooldown)?;
+        let mut out = CooldownV1::default();
+        unsafe { f(self.sim.state(), self.handle, slot.code(), &mut out) }.then_some(out)
+    }
+
     /// Entity display/champion name.
     pub fn name(&self) -> Option<String> {
         let f = slot!(self.sim.sim(), SimVtableV1, entity_name)?;
@@ -602,6 +629,89 @@ impl StableEntity<'_, '_> {
         }
         buf.truncate(full.min(len));
         String::from_utf8(buf).ok()
+    }
+}
+
+/// Read-only view of one entity, handed to engine queries that run without a
+/// simulation context (`StableEffectType::range_adjust`,
+/// `StableAction::can_use_with_move_by`). Valid only inside that call.
+pub struct StableEntityView<'a> {
+    raw: &'a EntityViewV1,
+}
+
+macro_rules! view_getter {
+    ($name:ident, $slot:ident, $ret:ty, $default:expr) => {
+        pub fn $name(&self) -> $ret {
+            slot!(self.raw.vtable, EntityViewVtableV1, $slot)
+                .map_or($default, |f| unsafe { f(self.raw.state) })
+        }
+    };
+}
+
+impl<'a> StableEntityView<'a> {
+    /// # Safety
+    /// `raw` must point at a live `EntityViewV1` for the call duration.
+    pub unsafe fn from_raw(raw: *const EntityViewV1) -> Option<Self> {
+        if raw.is_null() || (*raw).size < size_of::<EntityViewV1>() || (*raw).vtable.is_null() {
+            return None;
+        }
+        Some(Self { raw: &*raw })
+    }
+
+    view_getter!(id, id, usize, usize::MAX);
+    view_getter!(team, team, usize, 0);
+    view_getter!(level, level, usize, 1);
+    view_getter!(shield, shield, usize, 0);
+    view_getter!(buff_count, buff_count, usize, 0);
+    view_getter!(cc_count, cc_count, usize, 0);
+
+    pub fn kind(&self) -> Option<EntityKindV1> {
+        let f = slot!(self.raw.vtable, EntityViewVtableV1, kind)?;
+        EntityKindV1::from_code(unsafe { f(self.raw.state) })
+    }
+
+    /// (current, max) hp.
+    pub fn hp(&self) -> (usize, usize) {
+        let (mut current, mut max) = (0, 0);
+        if let Some(f) = slot!(self.raw.vtable, EntityViewVtableV1, hp) {
+            unsafe { f(self.raw.state, &mut current, &mut max) };
+        }
+        (current, max)
+    }
+
+    /// Current stats, buffs included.
+    pub fn stat(&self) -> StatV1 {
+        let mut out = StatV1::default();
+        if let Some(f) = slot!(self.raw.vtable, EntityViewVtableV1, stat) {
+            unsafe { f(self.raw.state, &mut out) };
+        }
+        out
+    }
+
+    pub fn pos(&self) -> (u64, u64) {
+        let (mut x, mut y) = (0, 0);
+        if let Some(f) = slot!(self.raw.vtable, EntityViewVtableV1, pos) {
+            unsafe { f(self.raw.state, &mut x, &mut y) };
+        }
+        (x, y)
+    }
+
+    pub fn buff_at(&self, index: usize) -> Option<BuffV1> {
+        let f = slot!(self.raw.vtable, EntityViewVtableV1, buff_at)?;
+        let mut out = BuffV1::default();
+        unsafe { f(self.raw.state, index, &mut out) }.then_some(out)
+    }
+
+    /// True while a stat buff with this name is on the entity — the usual
+    /// way a mod marks a state such as "empowered".
+    pub fn has_buff(&self, name: &str) -> bool {
+        (0..self.buff_count()).filter_map(|i| self.buff_at(i)).any(|b| b.name() == name)
+    }
+
+    pub fn cc_at(&self, index: usize) -> Option<CcV1> {
+        let f = slot!(self.raw.vtable, EntityViewVtableV1, cc_at)?;
+        let mut out = CcV1::default();
+        unsafe { f(self.raw.state, index, &mut out) }.then_some(out)
     }
 }
 

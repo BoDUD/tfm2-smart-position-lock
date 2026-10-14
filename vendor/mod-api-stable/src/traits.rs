@@ -8,7 +8,7 @@
 use crate::{
     AttackTypeV1, BuffV1, CastingTargetV1, CastingTypeV1, ChampionCategoryV1, ChampionTagV1,
     CommandResultV1, InputTargetV1, InputV1, ItemCategoryV1, ItemTagV1, StableCommand,
-    StableServerCtx, StableSim, StatV1,
+    StableEntityView, StableServerCtx, StableSim, StatV1,
 };
 
 /// Champion definition, mirroring the legacy `ModChampionInfo` surface.
@@ -105,6 +105,29 @@ pub trait StableAction: Send + Sync + 'static {
     fn description(&self) -> String {
         String::new()
     }
+
+    /// AI cast gate, asked before the AI considers this action: return
+    /// `false` and the AI does not try it now (e.g. "ult only at 5 stacks",
+    /// "only above 50% hp"). It steers the AI's decision only — an input a
+    /// custom `StablePlayerAi` issues directly still casts. `sim` is
+    /// read-only. Keep it deterministic. Hosts older than ABI level 10 never ask.
+    fn can_activate(&self, _sim: &StableSim<'_>, _caster: usize) -> bool {
+        true
+    }
+
+    /// Per-target AI gate: return `false` and the AI does not aim this action
+    /// at `target` (e.g. "execute only below 30% hp"). `sim` is read-only.
+    fn target_constraint(&self, _sim: &StableSim<'_>, _caster: usize, _target: usize) -> bool {
+        true
+    }
+
+    /// Caster-aware [`StableAction::can_use_with_move`], asked each time the
+    /// action starts — return `true` to let this cast (or attack) happen
+    /// while moving, e.g. only while a named buff is up. Defaults to the
+    /// static flag.
+    fn can_use_with_move_by(&self, _caster: &StableEntityView<'_>) -> bool {
+        self.can_use_with_move()
+    }
 }
 
 /// Effect logic, mirroring the legacy `ModEffectType` surface.
@@ -157,6 +180,20 @@ pub trait StableEffectType: Send + Sync + 'static {
 
     fn linear_move_speed(&self) -> Option<usize> {
         None
+    }
+
+    /// Return `true` when [`StableEffectType::range_adjust`] can be non-zero;
+    /// the engine skips `range_adjust` for effects that report `false`.
+    fn may_adjust_range(&self) -> bool {
+        false
+    }
+
+    /// Extra cast range for this caster/target pair on top of
+    /// `range + growth_range * (level - 1)` — e.g. a longer range while the
+    /// caster has an "empowered" buff. Every range check reads it, the AI's
+    /// included. Requires [`StableEffectType::may_adjust_range`].
+    fn range_adjust(&self, _caster: &StableEntityView<'_>, _target: &StableEntityView<'_>) -> u64 {
+        0
     }
 }
 
@@ -212,6 +249,19 @@ pub trait StablePassive: Send + Sync + 'static {
     fn on_assist(&mut self, _sim: &mut StableSim<'_>, _player: usize, _entity: usize) {}
 
     fn on_dead(&mut self, _sim: &mut StableSim<'_>, _player: usize) {}
+
+    /// The owner was credited with a minion or jungle-camp kill (the player
+    /// who takes the CS). Tell the victim apart with `entity.kind()`, e.g. to
+    /// grant a buff for a camp. Epic objectives reward the whole team and do
+    /// not fire this. Hosts older than ABI level 10 never call it.
+    fn on_unit_kill(
+        &mut self,
+        _sim: &mut StableSim<'_>,
+        _player: usize,
+        _entity: usize,
+        _victim: usize,
+    ) {
+    }
 }
 
 /// Client lifecycle hooks, mirroring the legacy `ModExtension`. UI mutation
@@ -316,6 +366,15 @@ pub trait StableDraftHook: Send + Sync + 'static {
 
     /// Full override for picks, same rules as `decide_ban`.
     fn decide_pick(&self, _ctx: &crate::StableDraftContext<'_>) -> Option<usize> {
+        None
+    }
+
+    /// Full override of the lane assignment once the picks are in (AI teams;
+    /// `ctx.phase()` is `Position`): return one index into
+    /// `ctx.ally_picks()` per lane slot of `ctx.slot_lanes()`, in slot order.
+    /// Ignored unless it is a complete permutation; of multiple hooks the
+    /// last deciding one wins. `None` keeps the engine's assignment.
+    fn decide_positions(&self, _ctx: &crate::StableDraftContext<'_>) -> Option<Vec<usize>> {
         None
     }
 }
