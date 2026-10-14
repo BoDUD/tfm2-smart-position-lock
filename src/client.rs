@@ -57,6 +57,7 @@ impl StableExtension for ClientExt {
             if let Some(mut st) = guard.take() {
                 st.screen.close();
                 st.history.reset();
+                crate::hook::set_player_team(None);
             }
             return;
         }
@@ -68,6 +69,8 @@ impl StableExtension for ClientExt {
         // records are read on the management screens only: not a frame around a match is spent
         let read = cfg.enabled && cfg.history && matches!(ctx.client_scene_kind(), None | Some(ClientSceneKindV1::Main));
         st.history.tick(&mut ClientSource { ctx }, now, read);
+        // the seating log names the player's team
+        crate::hook::set_player_team(st.history.save.as_ref().map(|s| s.0));
         // asked again for a new save, and now and then while the game has none to give
         if st.champions_for != st.history.save || (st.champions.is_empty() && st.frame.is_multiple_of(120)) {
             st.champions_for = st.history.save.clone();

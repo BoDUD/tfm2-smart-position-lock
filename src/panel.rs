@@ -6,9 +6,10 @@
 //!   save's matches;
 //! - every champion of the ban/pick grid (and any with positions of its own), 24 to a page: its
 //!   face and name, the five positions - lit where it may play - and whether those are the
-//!   player's own (`[positions]`, "手动", with ↺ to go back) or worked out ("自动": the card's main
-//!   positions and the save's matches). A click on a position turns it on or off for that
-//!   champion; it then has positions of its own. The last position cannot be turned off.
+//!   player's own (`[positions]`, "手动", with ↺ to go back), built in ("内置": a League of Legends
+//!   champion's official main positions) or worked out ("自动": the card's main positions and the
+//!   save's matches). A click on a position turns it on or off for that champion; it then has
+//!   positions of its own. The last position cannot be turned off.
 //!
 //! The panel takes the clicks over its own area (a click between its buttons must not reach a
 //! champion card underneath); the rest of the screen stays usable.
@@ -41,7 +42,7 @@ const SLOT: &str = "#232533ff";
 
 /// The switches: setting key, label.
 const SWITCHES: [(&str, &str); 4] =
-    [("enabled", "总开关 Lock"), ("ai", "锁定 AI 选人"), ("player", "锁定我自己选人"), ("history", "参考存档战绩")];
+    [("enabled", "总开关 Lock"), ("ai", "锁定 AI 选人和分路"), ("player", "锁定我自己选人"), ("history", "参考存档战绩")];
 
 #[derive(Default)]
 pub struct Panel {
@@ -142,12 +143,13 @@ fn source(cfg: &Config, list: &[String], page: usize) -> String {
         13,
         DIM,
         "Left",
-        "绿色 = 能打这个位置 · 手动 = 你指定的位置（↺ 恢复自动） · 自动 = 选人卡片上的主位置 + 本存档实际打过的位置",
+        "绿色 = 能打这个位置 · 手动 = 你指定的（↺ 恢复） · 内置 = 英雄联盟官方主位置 · 自动 = 选人卡片上的主位置 + 本存档实际打过的位置",
     ));
     for (i, champ) in list.iter().skip(page * PER_PAGE).take(PER_PAGE).enumerate() {
         let x = 28 + (i / PER_COLUMN) as i32 * 600;
         let y = 158 + (i % PER_COLUMN) as i32 * 54;
-        let own = cfg.override_of(champ).is_some();
+        let from = lanes::source(champ, cfg);
+        let own = from == lanes::Source::Settings;
         let lit = lanes::allowed(champ, cfg, played.as_deref());
         let mut row = format!(
             "#face:color {{ x: 0px; y: 3px; width: 44px; height: 44px; color: {SLOT}; ignore_event: true; \
@@ -158,7 +160,12 @@ fn source(cfg: &Config, list: &[String], page: usize) -> String {
         for (lane, on) in lit.iter().enumerate() {
             row.push_str(&button(&format!("l{lane}"), 206 + lane as i32 * 58, 8, 54, 34, *on, 13, &position_ref(lane)));
         }
-        row.push_str(&label("src", 500, 0, 40, 50, 12, if own { TEXT } else { DIM }, "Center", if own { "手动" } else { "自动" }));
+        let src = match from {
+            lanes::Source::Settings => "手动",
+            lanes::Source::Preset => "内置",
+            lanes::Source::Game => "自动",
+        };
+        row.push_str(&label("src", 500, 0, 40, 50, 12, if own { TEXT } else { DIM }, "Center", src));
         if own {
             row.push_str(&button("auto", 544, 8, 32, 34, false, 15, "↺"));
         }
@@ -372,6 +379,39 @@ mod tests {
         frame(&mut p, &mut ui, 45, &[]);
         assert!(!p.is_open());
 
+        let _ = std::fs::remove_file(crate::paths::mod_dir().join(config::FILE));
+        config::set(Config::default());
+        lanes::clear();
+    }
+
+    #[test]
+    fn league_champions_show_their_built_in_positions() {
+        let _serial = crate::tests::serial();
+        crate::tests::temp_dir();
+        let _ = std::fs::remove_file(crate::paths::mod_dir().join(config::FILE));
+        config::load_now();
+        lanes::clear();
+        // the card said top/jungle, as it does for every League champion the game has not seen
+        lanes::learn("league_bard", [true, true, false, false, false]);
+        let mut ui = FakeUi::default();
+        ui.add("main", None);
+        let mut p = Panel::default();
+        frame(&mut p, &mut ui, 1, &["F7"]);
+        let row = "main.spl_panel.box.r0";
+        assert_eq!(ui.text(&format!("{row}.src")).as_deref(), Some("内置"));
+        assert!(!ui.exists(&format!("{row}.auto")), "nothing to go back to");
+        // top turned on: his own positions, the main one (support) still first
+        ui.click(&format!("{row}.l0"));
+        frame(&mut p, &mut ui, 2, &[]);
+        let file = std::fs::read_to_string(crate::paths::mod_dir().join(config::FILE)).unwrap();
+        assert!(file.contains("league_bard=Support,Top"), "{file}");
+        assert_eq!(config::get().main_of("league_bard"), Some(4));
+        assert_eq!(ui.text(&format!("{row}.src")).as_deref(), Some("手动"));
+        // back to the built-in positions
+        ui.click(&format!("{row}.auto"));
+        frame(&mut p, &mut ui, 3, &[]);
+        assert_eq!(ui.text(&format!("{row}.src")).as_deref(), Some("内置"));
+        assert_eq!(lanes::allowed("league_bard", &config::get(), None), [false, false, false, false, true]);
         let _ = std::fs::remove_file(crate::paths::mod_dir().join(config::FILE));
         config::set(Config::default());
         lanes::clear();
