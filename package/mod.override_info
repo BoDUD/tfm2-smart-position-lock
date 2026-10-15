@@ -1,0 +1,6 @@
+{
+  "asset/base/text/ui": {
+    "remapping": "asset/smart_position_lock/text/ui",
+    "type": "merge"
+  }
+}

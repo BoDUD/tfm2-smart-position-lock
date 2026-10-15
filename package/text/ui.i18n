@@ -1,0 +1,257 @@
+{
+  "ko": {
+    "smart_position_lock": {
+      "title": "스마트 포지션 잠금 · Smart Position Lock",
+      "hint": "포지션을 눌러 챔피언이 맡을 수 있는 위치를 설정 (즉시 적용, settings.ini에 저장). F7 / Esc로 닫기",
+      "sw_enabled": "전체 스위치",
+      "sw_ai": "AI 픽·라인 잠금",
+      "sw_player": "내 픽 잠금",
+      "sw_history": "세이브 경기 참고",
+      "legend": "초록 = 이 위치 가능 · 수동 = 직접 지정 (↺ 되돌리기) · 내장 = LoL 공식 주 포지션 · 자동 = 밴/픽 카드의 주 포지션 + 이 세이브에서 실제로 맡은 위치",
+      "src_manual": "수동",
+      "src_builtin": "내장",
+      "src_auto": "자동",
+      "foot": "챔피언은 밴/픽 화면에 한 번 나온 뒤 여기에 표시됩니다."
+    }
+  },
+  "en": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  },
+  "ja": {
+    "smart_position_lock": {
+      "title": "スマートポジションロック · Smart Position Lock",
+      "hint": "ポジションをクリックしてチャンピオンの担当位置を設定（即時反映、settings.ini に保存）。F7 / Esc で閉じる",
+      "sw_enabled": "全体スイッチ",
+      "sw_ai": "AIのピックとレーンを制限",
+      "sw_player": "自分のピックを制限",
+      "sw_history": "セーブの試合を参照",
+      "legend": "緑 = その位置を担当できる · 手動 = あなたが指定（↺ で戻す） · 内蔵 = LoL公式メインポジション · 自動 = ピックカードのメインポジション + このセーブで担当した位置",
+      "src_manual": "手動",
+      "src_builtin": "内蔵",
+      "src_auto": "自動",
+      "foot": "チャンピオンはバン/ピック画面に一度登場すると、ここに表示されます。"
+    }
+  },
+  "de": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  },
+  "vi": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  },
+  "pt-BR": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  },
+  "tr": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  },
+  "nl": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  },
+  "ru": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  },
+  "es-ES": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  },
+  "fr": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  },
+  "it": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  },
+  "zh-hans": {
+    "smart_position_lock": {
+      "title": "智能位置锁定 · Smart Position Lock",
+      "hint": "点位置按钮设置英雄能打的位置，立即生效并保存到 settings.ini。F7 / Esc 关闭",
+      "sw_enabled": "总开关",
+      "sw_ai": "锁定 AI 选人和分路",
+      "sw_player": "锁定我自己选人",
+      "sw_history": "参考存档战绩",
+      "legend": "绿色 = 能打这个位置 · 手动 = 你指定的（↺ 恢复） · 内置 = 英雄联盟官方主位置 · 自动 = 选人卡片上的主位置 + 本存档实际打过的位置",
+      "src_manual": "手动",
+      "src_builtin": "内置",
+      "src_auto": "自动",
+      "foot": "英雄在选人界面出现过一次后才会列在这里。"
+    }
+  },
+  "zh-hant": {
+    "smart_position_lock": {
+      "title": "智慧位置鎖定 · Smart Position Lock",
+      "hint": "點位置按鈕設定英雄能打的位置，立即生效並儲存到 settings.ini。F7 / Esc 關閉",
+      "sw_enabled": "總開關",
+      "sw_ai": "鎖定 AI 選人和分路",
+      "sw_player": "鎖定我自己選人",
+      "sw_history": "參考存檔戰績",
+      "legend": "綠色 = 能打這個位置 · 手動 = 你指定的（↺ 恢復） · 內建 = 英雄聯盟官方主位置 · 自動 = 選人卡片上的主位置 + 本存檔實際打過的位置",
+      "src_manual": "手動",
+      "src_builtin": "內建",
+      "src_auto": "自動",
+      "foot": "英雄在選人畫面出現過一次後才會列在這裡。"
+    }
+  },
+  "pl": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  },
+  "th": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  },
+  "haw": {
+    "smart_position_lock": {
+      "title": "Smart Position Lock",
+      "hint": "Click a position to set where a champion can play - applied at once and saved to settings.ini. F7 / Esc to close",
+      "sw_enabled": "Master switch",
+      "sw_ai": "Lock AI picks & lanes",
+      "sw_player": "Lock my own picks",
+      "sw_history": "Use this save's games",
+      "legend": "Green = can play there · Manual = set by you (↺ undoes) · Preset = League of Legends official positions · Auto = the ban/pick card's positions + positions played in this save",
+      "src_manual": "Manual",
+      "src_builtin": "Preset",
+      "src_auto": "Auto",
+      "foot": "A champion is listed here once it has appeared on the ban/pick screen."
+    }
+  }
+}

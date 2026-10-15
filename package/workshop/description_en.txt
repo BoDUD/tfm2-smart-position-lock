@@ -1,0 +1,103 @@
+[h1]Smart Position Lock[/h1]
+
+[b]In one line:[/b] in the draft, both teams only pick champions that can still take one of their open positions, and once an AI team has picked, every champion is seated in a position it can play. [b]Works as soon as it is installed - nothing to set up.[/b]
+
+[h2]What it fixes[/h2]
+[list]
+[*]AI teams picking two top-only champions, or seating Garen in support.
+[*]Picking a champion that no longer fits any open position.
+[*]Mod champions have no position statistics: their cards all say "Top + Jungle" and the AI picks and seats them at random.
+[/list]
+
+[h2]What it does[/h2]
+[list]
+[*][b]AI picks:[/b] each AI pick is a champion that, together with the ones already picked, can still be seated one per position - in any pick order.
+[*][b]AI lanes (game 0.6.4 or later):[/b] once an AI team has its five champions, this mod seats them: every champion in a position it can play, its main position when it has a choice, and among equally good seatings, each champion with the player who plays it best (the game's champion proficiency). On game 0.6.3 and earlier only the picks are held; the lanes are the game's.
+[*][b]Your own picks:[/b] a champion card that does not fit any open position is covered by a lock and cannot be clicked. Your own team's lanes are still yours to set in the swap phase.
+[*][b]Bans are free.[/b]
+[*][b]A draft never gets stuck:[/b] when nothing on offer fits, everything does. While the mod does not know whether you are blue or red, nothing is locked on your side.
+[/list]
+
+[h2]Which positions can a champion play? (first found wins)[/h2]
+[olist]
+[*][b]Your own list[/b] (F7 panel or settings.ini, see below) - wins over everything.
+[*][b]League of Legends Heroes champions:[/b] the official main positions of all 106 are built in; the first listed is the one it plays when it has a choice. Nothing to copy.
+[*][b]Every other champion (base game champions, champions from any other mod):[/b]
+[list]
+[*]the two main positions the game shows on its ban/pick card (the game's statistics: the two positions it has seen the champion played in most - not something a champion mod sets);
+[*]plus every position it has really played often enough in your save (default: at least 8 games, and at least 15% of them in that position; competition matches and solo queue both count).
+[/list]
+The main positions are learned the first time you open the ban/pick screen and kept in positions.json in the mod folder; matches between AI teams use them too.
+[/olist]
+
+[h2]How champions from other mods are locked (important)[/h2]
+Champions from other mods are locked and seated too, [b]with nothing else to install[/b]. One thing to know:
+[list]
+[*]A brand-new champion the game has no statistics for shows [b]"Top + Jungle"[/b] on its card. The mod then thinks it can only play top and jungle - a support from some mod would be held to top or jungle.
+[*]Any one of three ways fixes it:
+[olist]
+[*][b]F7 panel (recommended, easiest):[/b] open the ban/pick screen once so the champion appears in the list → press F7 on any screen → page to the champion → click the positions it cannot play to grey and the ones it can to green. Applied at once, saved automatically, and kept from then on.
+[*][b]settings.ini:[/b] add a line "champion_id=Pos1,Pos2" to the [positions] section of settings.ini in the mod folder, e.g. [i]my_lux=Mid,Support[/i]. The first is its main position. Positions: Top, Jungle, Mid, Bottom, Support. Takes effect a few seconds after saving, no restart.
+Don't know the champion's id? Click any of its positions once in the F7 panel: its line appears in settings.ini (the id is before the equals sign) - then edit it as you like.
+[*][b]Let it learn:[/b] keep "Use this save's games" on; after the champion has played 8 games in your save, the positions it really played count.
+[/olist]
+[*]When none of a team's five champions has any position information, the mod leaves that team's lanes to the game.
+[/list]
+
+[h2]In-game settings panel (F7)[/h2]
+Press [b]F7[/b] on any screen to open it; F7 again, Esc or the ✕ at the top right closes it. Every click takes effect at once and is written to settings.ini. The panel follows the game's language (简体中文, 繁體中文, English, 日本語, 한국어; English for the others).
+
+[b]The four switches on top: green = on, grey = off[/b] (clicked one by mistake? click it again; keep all four green unless you have a reason):
+[table]
+[tr][th]Switch[/th][th]What it does[/th][th]When off[/th][/tr]
+[tr][td]Master switch[/td][td]The whole mod[/td][td]Nothing is locked or seated - as if it were not installed[/td][/tr]
+[tr][td]Lock AI picks & lanes[/td][td]The AI only picks what fits, and this mod seats AI teams[/td][td]AI teams pick two top laners again and seat at random[/td][/tr]
+[tr][td]Lock my own picks[/td][td]Cards that do not fit are locked for you[/td][td]You can pick anything (the AI is still held)[/td][/tr]
+[tr][td]Use this save's games[/td][td]Positions a champion really played in this save count too[/td][td]Only the card's two main positions (built-in League champions are not affected)[/td][/tr]
+[/table]
+
+[b]The champion list below:[/b] every champion that has appeared on the ban/pick screen, 24 to a page, ◀ ▶ to turn pages.
+[list]
+[*]Five position buttons per row (top / jungle / mid / bottom / support), [b]green = this champion can play there[/b]; a click turns it on or off.
+[*]The mark after each champion: [b]Preset[/b] = League of Legends official main positions; [b]Auto[/b] = card positions + this save's games; [b]Manual[/b] = changed by you, [b]↺[/b] goes back.
+[/list]
+
+[h2]settings.ini (in the mod folder, created on the first run)[/h2]
+[table]
+[tr][th]Section[/th][th]Key[/th][th]Default[/th][th]What it does[/th][/tr]
+[tr][td][lock][/td][td]enabled[/td][td]on[/td][td]Master switch[/td][/tr]
+[tr][td][/td][td]ai[/td][td]on[/td][td]Hold the AI's picks and seat AI teams[/td][/tr]
+[tr][td][/td][td]player[/td][td]on[/td][td]Hold your own picks[/td][/tr]
+[tr][td][history][/td][td]history[/td][td]on[/td][td]Count the positions really played in this save[/td][/tr]
+[tr][td][/td][td]min_games / share[/td][td]8 / 0.15[/td][td]Games played, and share in a position, before it counts[/td][/tr]
+[tr][td][positions][/td][td]champion id[/td][td](empty)[/td][td]Your own positions, e.g. ahri=Mid,Support - replaces the built-in and automatic ones[/td][/tr]
+[/table]
+To change a built-in League champion: click it in the F7 panel, or write league_xxx=… in [positions] (settings.ini wins over the built-in list).
+
+[h2]With other mods[/h2]
+[list]
+[*][b]Patch Meta AI:[/b] works together - its suggestions skip locked champions, and the main positions it learned earlier are taken over.
+[*][b]Do not[/b] run it together with another position lock (Champion Position Lock): the two locks add up and a champion would have to satisfy both.
+[*]Champion mods need no changes.
+[/list]
+
+[h2]If something is wrong[/h2]
+diag.log in the mod folder shows what the mod read and whether the lock worked (rewritten at every start; the previous one is kept as diag.prev.log):
+[list]
+[*][draft]: each AI pick, open positions, champions held back;
+[*][seat]: each AI team's seating, with players and proficiency;
+[*][athletes]: player proficiencies read;
+[*][check]: whether each side's picks fit one per position;
+[*][result]: where every champion really played.
+[/list]
+Attach diag.log to a comment and the cause is found fastest.
+
+[h2]FAQ[/h2]
+[list]
+[*][b]A button in the F7 panel turned from green to grey?[/b] Grey means off. Click it again to turn it back on.
+[*][b]A mod champion keeps ending up in a strange position?[/b] See "How champions from other mods are locked" above: click its positions once in F7.
+[*][b]Did it change my own team's lanes?[/b] No, only AI teams are seated.
+[/list]
+
+[h2]Compatibility[/h2]
+Native mod (stable mod API). Game 0.6 or later; AI lanes need game 0.6.4 or later. Does not touch your save; unsubscribe any time. Free, MIT licensed.
