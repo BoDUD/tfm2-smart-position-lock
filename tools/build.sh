@@ -18,7 +18,7 @@ case "$(uname -s)" in
 esac
 
 version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
-py=$(command -v python3 || command -v python)
+py=$(command -v python || command -v python3)   # python3 can be the Windows Store stub
 info_version=$("$py" -c "import json;print(json.load(open('package/mod.mod_info', encoding='utf-8'))['version'])")
 if [ "$version" != "$info_version" ]; then
     echo "Cargo.toml version $version != package/mod.mod_info version $info_version" >&2
@@ -28,7 +28,9 @@ fi
 out="dist/$id"
 rm -rf "$out"
 mkdir -p "$out"
-cp "$dll" package/mod.mod_info package/thumbnail.png "$out/"
+cp "$dll" package/mod.mod_info package/mod.override_info package/thumbnail.png "$out/"
+mkdir -p "$out/text"
+cp package/text/ui.i18n "$out/text/"   # the F7 panel's words in every language (merged into the game's ui text)
 
 "$py" - "$id" "$version" <<'PY'
 import os, sys, zipfile

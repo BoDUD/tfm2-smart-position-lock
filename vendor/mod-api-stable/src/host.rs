@@ -457,6 +457,19 @@ pub struct SimVtableV1 {
     pub entity_stack_buff: Option<
         unsafe extern "C" fn(state: *mut c_void, target: EntityHandleV1, buff: *const BuffV1, max_stacks: usize, refresh: u32) -> usize,
     >,
+    // -- level 10 --
+    /// [`crate::EntityKindV1`] code of the entity; u32::MAX when invalid.
+    pub entity_kind: Option<unsafe extern "C" fn(state: *const c_void, entity: EntityHandleV1) -> u32>,
+    /// Cooldown and charges of one champion action slot
+    /// ([`crate::SkillSlotV1`] code). False for non-champions.
+    pub entity_cooldown: Option<
+        unsafe extern "C" fn(state: *const c_void, entity: EntityHandleV1, slot: u32, out: *mut crate::CooldownV1) -> bool,
+    >,
+    /// Takes `ticks` off one champion action slot's remaining cooldown
+    /// (floors at ready) — a fixed-amount reduction for that slot only.
+    pub entity_reduce_cooldown: Option<
+        unsafe extern "C" fn(state: *mut c_void, entity: EntityHandleV1, slot: u32, ticks: usize) -> bool,
+    >,
 }
 
 /// Frame/debug drawing during a running match.

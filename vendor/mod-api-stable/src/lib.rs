@@ -87,8 +87,9 @@ pub use entry::{
 pub use export::ModExportV1;
 pub use gameplay::{
     ActionRegV1, ActionVtableV1, ChampionRegV1, ChampionVtableV1, EffectSpecV1, EffectTypeRegV1,
-    EffectTypeVtableV1, ItemRegV1, ItemVtableV1, MatchHookRegV1, MatchHookVtableV1,
-    NativeEffectRegV1, NativePassiveRegV1, PassiveRegV1, PassiveVtableV1, SimCtxV1,
+    EffectTypeVtableV1, EntityViewV1, EntityViewVtableV1, ItemRegV1, ItemVtableV1,
+    MatchHookRegV1, MatchHookVtableV1, NativeEffectRegV1, NativePassiveRegV1, PassiveRegV1,
+    PassiveVtableV1, SimCtxV1,
 };
 pub use handle::{EntityHandleV1, PlayerHandleV1, ProjectileHandleV1};
 pub use json_doc::{
@@ -101,7 +102,7 @@ pub use host::{
 };
 pub use server::{ServerCtxV1, ServerExtRegV1, ServerExtVtableV1, ServerVtableV1};
 pub use server_ctx::{StableCommand, StableManagementEvent, StableServerCtx};
-pub use sim::{StableEntity, StablePlayer, StableSim};
+pub use sim::{StableEntity, StableEntityView, StablePlayer, StableSim};
 pub use traits::{
     StableAction, StableChampion, StableDraftHook, StableEffectSpec, StableEffectType,
     StableExtension, StableItem, StableItemBuildHook, StableMapCustomizer, StableMatchHook,
@@ -121,6 +122,7 @@ pub use values::{
 };
 pub use wrapper::{LogLevel, StableHost, StableMod};
 pub use values::{SimOriginKindV1, SimOriginV1};
+pub use values::{CooldownV1, EntityKindV1, SkillSlotV1};
 
 /// Current ABI level of this crate. Bumped (+1) every time the host appends
 /// slots/fields/types to the contract. Level 1 is the initial contract.
@@ -172,4 +174,20 @@ pub use values::{SimOriginKindV1, SimOriginV1};
 /// files by name, with the file's integer params delivered as sorted-key
 /// JSON. Data champions no longer need to go full native for a custom
 /// passive.
-pub const ABI_LEVEL: u32 = 9;
+///
+/// Level 10 opens the engine hooks modders asked for after level 9 shipped:
+/// - `ActionVtableV1` `can_activate` / `target_constraint` (the engine's own
+///   AI cast gates — the AI skips an action or target the mod rejects) and
+///   `can_use_with_move_ex` (move-cast decided per caster, per start);
+/// - `EffectTypeVtableV1` `may_adjust_range` / `range_adjust` (per-pair
+///   extra range read by every range check), with `EntityViewV1` giving
+///   these simulation-less queries a read-only view of the entities;
+/// - `PassiveVtableV1` `on_unit_kill` (minion / jungle-camp kills) and
+///   `SimVtableV1` `entity_kind` to tell victims apart;
+/// - `SimVtableV1` `entity_cooldown` (charges-aware cooldown read, typed
+///   `CooldownV1`) and `entity_reduce_cooldown` (fixed-amount, per-slot);
+/// - `DraftHookVtableV1` `decide_positions` with `DraftPhaseV1::Position`,
+///   and `DraftCtxV1` lineups (athlete ids, team ids) and lane slots;
+/// - `SettingTargetV1::AutoPatch`, the save's balance auto-patcher
+///   parameters as a setting document.
+pub const ABI_LEVEL: u32 = 10;

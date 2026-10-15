@@ -210,6 +210,51 @@ impl<'a> StableDraftContext<'a> {
     pub fn champion_growth(&self, champion_id: usize) -> Option<crate::StatV1> {
         Some(self.champion_brief(champion_id)?.growth)
     }
+
+    // -- lineups and lane slots (ABI level 10) --
+
+    fn has_level10_fields(&self) -> bool {
+        let end = std::mem::offset_of!(DraftCtxV1, slot_lanes_len) + size_of::<usize>();
+        self.raw.size >= end
+    }
+
+    /// Athlete ids of the deciding team's lineup, in lane-slot order. Empty
+    /// when unknown or on hosts older than ABI level 10. Look the athletes
+    /// up through the record APIs (`RecordKindV1::Athlete`).
+    pub fn ally_athletes(&self) -> &'a [usize] {
+        if !self.has_level10_fields() {
+            return &[];
+        }
+        self.read_slice(self.raw.ally_athletes_ptr, self.raw.ally_athletes_len)
+    }
+
+    /// Athlete ids of the opposing lineup, same rules as `ally_athletes`.
+    pub fn enemy_athletes(&self) -> &'a [usize] {
+        if !self.has_level10_fields() {
+            return &[];
+        }
+        self.read_slice(self.raw.enemy_athletes_ptr, self.raw.enemy_athletes_len)
+    }
+
+    pub fn ally_team(&self) -> Option<usize> {
+        (self.has_level10_fields() && self.raw.ally_team != usize::MAX).then_some(self.raw.ally_team)
+    }
+
+    pub fn enemy_team(&self) -> Option<usize> {
+        (self.has_level10_fields() && self.raw.enemy_team != usize::MAX).then_some(self.raw.enemy_team)
+    }
+
+    /// Lane of each slot `decide_positions` fills, in slot order (phase
+    /// `Position` only; empty otherwise).
+    pub fn slot_lanes(&self) -> Vec<LaneV1> {
+        if !self.has_level10_fields() || self.raw.slot_lanes_ptr.is_null() {
+            return Vec::new();
+        }
+        let codes = unsafe {
+            std::slice::from_raw_parts(self.raw.slot_lanes_ptr, self.raw.slot_lanes_len)
+        };
+        codes.iter().filter_map(|code| LaneV1::from_code(*code)).collect()
+    }
 }
 
 /// Draft score decision returned by a stable hook.

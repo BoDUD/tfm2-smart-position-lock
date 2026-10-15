@@ -1,4 +1,4 @@
-abi_level = 9
+abi_level = 10
 symbol tfm2_mod_required_abi_level
 symbol tfm2_mod_entry_stable
 const LOG_LEVEL_ERROR = 1
@@ -134,6 +134,7 @@ enumcode InputKindV1.Skill2 = 4
 enumcode InputKindV1.Ult = 5
 enumcode DraftPhaseV1.Ban = 0
 enumcode DraftPhaseV1.Pick = 1
+enumcode DraftPhaseV1.Position = 2
 enumcode DifficultyV1.Easy = 0
 enumcode DifficultyV1.Normal = 1
 enumcode DifficultyV1.Hard = 2
@@ -147,6 +148,7 @@ enumcode GameModeKindV1.SingleLane = 1
 enumcode GameModeKindV1.DeathMatch = 2
 enumcode SettingTargetV1.GameSetting = 0
 enumcode SettingTargetV1.ItemSetting = 1
+enumcode SettingTargetV1.AutoPatch = 2
 enumcode RecordKindV1.Team = 0
 enumcode RecordKindV1.Athlete = 1
 enumcode RecordKindV1.League = 2
@@ -197,6 +199,18 @@ enumcode SimOriginKindV1.ClientMatchView = 2
 enumcode SimOriginKindV1.ClientSpectate = 3
 enumcode SimOriginKindV1.ClientReplay = 4
 enumcode SimOriginKindV1.Tool = 5
+enumcode SkillSlotV1.Attack = 0
+enumcode SkillSlotV1.Skill = 1
+enumcode SkillSlotV1.Skill2 = 2
+enumcode SkillSlotV1.Ult = 3
+enumcode EntityKindV1.Champion = 0
+enumcode EntityKindV1.Minion = 1
+enumcode EntityKindV1.Jungle = 2
+enumcode EntityKindV1.Epic = 3
+enumcode EntityKindV1.Serpen = 4
+enumcode EntityKindV1.Tower = 5
+enumcode EntityKindV1.Nexus = 6
+enumcode EntityKindV1.Summon = 7
 layout GameVersionV1 align=4
 size GameVersionV1 = 12
 field GameVersionV1.major offset=0 type=u32
@@ -376,7 +390,7 @@ bool>
 field ChampionVtableV1.lane_prior offset=112 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void,*mutusize,usize)->
 bool>
 layout ActionVtableV1 align=8
-size ActionVtableV1 = 96
+size ActionVtableV1 = 120
 field ActionVtableV1.size offset=0 type=usize
 field ActionVtableV1.destroy offset=8 type=Option<unsafeextern"C"fn(*mutstd::ffi::c_void)>
 field ActionVtableV1.clone offset=16 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->*mutstd::ffi::c_void>
@@ -391,8 +405,14 @@ bool>
 field ActionVtableV1.cooltime_use_count offset=72 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void,*constStatV1)->usize>
 field ActionVtableV1.can_use_with_move offset=80 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->bool>
 field ActionVtableV1.description offset=88 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->StrV1>
+field ActionVtableV1.can_activate offset=96 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void,*mutSimCtxV1,usize)->
+bool>
+field ActionVtableV1.target_constraint offset=104 type=Option<unsafeextern"C"
+fn(*conststd::ffi::c_void,*mutSimCtxV1,usize,usize)->bool>
+field ActionVtableV1.can_use_with_move_ex offset=112 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void,*constEntityViewV1)->
+bool>
 layout EffectTypeVtableV1 align=8
-size EffectTypeVtableV1 = 112
+size EffectTypeVtableV1 = 128
 field EffectTypeVtableV1.size offset=0 type=usize
 field EffectTypeVtableV1.destroy offset=8 type=Option<unsafeextern"C"fn(*mutstd::ffi::c_void)>
 field EffectTypeVtableV1.apply offset=16 type=Option<unsafeextern"C"
@@ -411,8 +431,11 @@ field EffectTypeVtableV1.auto_target offset=80 type=Option<unsafeextern"C"fn(*co
 field EffectTypeVtableV1.on_caster offset=88 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->bool>
 field EffectTypeVtableV1.can_move offset=96 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->bool>
 field EffectTypeVtableV1.linear_move_speed offset=104 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void,*mutusize)->bool>
+field EffectTypeVtableV1.may_adjust_range offset=112 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->bool>
+field EffectTypeVtableV1.range_adjust offset=120 type=Option<unsafeextern"C"
+fn(*conststd::ffi::c_void,*constEntityViewV1,*constEntityViewV1)->u64>
 layout PassiveVtableV1 align=8
-size PassiveVtableV1 = 104
+size PassiveVtableV1 = 112
 field PassiveVtableV1.size offset=0 type=usize
 field PassiveVtableV1.destroy offset=8 type=Option<unsafeextern"C"fn(*mutstd::ffi::c_void)>
 field PassiveVtableV1.clone offset=16 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->*mutstd::ffi::c_void>
@@ -434,6 +457,8 @@ field PassiveVtableV1.on_dead offset=80 type=Option<unsafeextern"C"fn(*mutstd::f
 field PassiveVtableV1.on_kill_ex offset=88 type=Option<unsafeextern"C"
 fn(*mutstd::ffi::c_void,*mutSimCtxV1,usize,usize,usize)>
 field PassiveVtableV1.configure offset=96 type=Option<unsafeextern"C"fn(*mutstd::ffi::c_void,*constu8,usize)>
+field PassiveVtableV1.on_unit_kill offset=104 type=Option<unsafeextern"C"
+fn(*mutstd::ffi::c_void,*mutSimCtxV1,usize,usize,usize)>
 layout ItemVtableV1 align=8
 size ItemVtableV1 = 232
 field ItemVtableV1.size offset=0 type=usize
@@ -483,7 +508,7 @@ fn(*mutstd::ffi::c_void,*mutSimCtxV1,u64,usize,usize)>
 field ItemVtableV1.on_upgrade offset=216 type=Option<unsafeextern"C"fn(*mutstd::ffi::c_void,StrV1)->u64>
 field ItemVtableV1.on_upgraded_from offset=224 type=Option<unsafeextern"C"fn(*mutstd::ffi::c_void,StrV1,u64)>
 layout SimVtableV1 align=8
-size SimVtableV1 = 696
+size SimVtableV1 = 720
 field SimVtableV1.size offset=0 type=usize
 field SimVtableV1.tick offset=8 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->usize>
 field SimVtableV1.seed offset=16 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->u64>
@@ -621,6 +646,11 @@ field SimVtableV1.entity_pull offset=680 type=Option<unsafeextern"C"
 fn(*mutstd::ffi::c_void,usize,EntityHandleV1,usize,usize)->bool>
 field SimVtableV1.entity_stack_buff offset=688 type=Option<unsafeextern"C"
 fn(*mutstd::ffi::c_void,EntityHandleV1,*constBuffV1,usize,u32)->usize>
+field SimVtableV1.entity_kind offset=696 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void,EntityHandleV1)->u32>
+field SimVtableV1.entity_cooldown offset=704 type=Option<unsafeextern"C"
+fn(*conststd::ffi::c_void,EntityHandleV1,u32,*mutCooldownV1)->bool>
+field SimVtableV1.entity_reduce_cooldown offset=712 type=Option<unsafeextern"C"fn(*mutstd::ffi::c_void,EntityHandleV1,u32,usize)
+->bool>
 layout UnitAttackV1 align=8
 size UnitAttackV1 = 56
 field UnitAttackV1.attack_ratio offset=0 type=usize
@@ -956,7 +986,7 @@ field ChampionBriefV1.tags offset=24 type=[u32;CHAMPION_BRIEF_TAG_CAP]
 field ChampionBriefV1.stat offset=72 type=StatV1
 field ChampionBriefV1.growth offset=144 type=StatV1
 layout DraftCtxV1 align=8
-size DraftCtxV1 = 120
+size DraftCtxV1 = 184
 field DraftCtxV1.size offset=0 type=usize
 field DraftCtxV1.phase offset=8 type=u32
 field DraftCtxV1.difficulty offset=12 type=u32
@@ -973,8 +1003,16 @@ field DraftCtxV1.enemy_pick_ptr offset=88 type=*constusize
 field DraftCtxV1.enemy_pick_len offset=96 type=usize
 field DraftCtxV1.champion_briefs_ptr offset=104 type=*constChampionBriefV1
 field DraftCtxV1.champion_briefs_len offset=112 type=usize
+field DraftCtxV1.ally_athletes_ptr offset=120 type=*constusize
+field DraftCtxV1.ally_athletes_len offset=128 type=usize
+field DraftCtxV1.enemy_athletes_ptr offset=136 type=*constusize
+field DraftCtxV1.enemy_athletes_len offset=144 type=usize
+field DraftCtxV1.ally_team offset=152 type=usize
+field DraftCtxV1.enemy_team offset=160 type=usize
+field DraftCtxV1.slot_lanes_ptr offset=168 type=*constu32
+field DraftCtxV1.slot_lanes_len offset=176 type=usize
 layout DraftHookVtableV1 align=8
-size DraftHookVtableV1 = 64
+size DraftHookVtableV1 = 72
 field DraftHookVtableV1.size offset=0 type=usize
 field DraftHookVtableV1.destroy offset=8 type=Option<unsafeextern"C"fn(*mutstd::ffi::c_void)>
 field DraftHookVtableV1.id offset=16 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->StrV1>
@@ -987,6 +1025,8 @@ field DraftHookVtableV1.decide_ban offset=48 type=Option<unsafeextern"C"
 fn(*conststd::ffi::c_void,*constDraftCtxV1,*mutusize)->bool>
 field DraftHookVtableV1.decide_pick offset=56 type=Option<unsafeextern"C"
 fn(*conststd::ffi::c_void,*constDraftCtxV1,*mutusize)->bool>
+field DraftHookVtableV1.decide_positions offset=64 type=Option<unsafeextern"C"
+fn(*conststd::ffi::c_void,*constDraftCtxV1,*mutusize,usize)->usize>
 layout ItemBuildCtxV1 align=8
 size ItemBuildCtxV1 = 120
 field ItemBuildCtxV1.size offset=0 type=usize
@@ -1144,3 +1184,34 @@ field ModExportV1.item_build_hooks_ptr offset=184 type=*constItemBuildHookRegV1
 field ModExportV1.item_build_hooks_len offset=192 type=usize
 field ModExportV1.native_passives_ptr offset=200 type=*constNativePassiveRegV1
 field ModExportV1.native_passives_len offset=208 type=usize
+layout CooldownV1 align=8
+size CooldownV1 = 56
+field CooldownV1.size offset=0 type=usize
+field CooldownV1.remaining offset=8 type=usize
+field CooldownV1.cooltime offset=16 type=usize
+field CooldownV1.max_charges offset=24 type=usize
+field CooldownV1.charges offset=32 type=usize
+field CooldownV1.next_charge_ticks offset=40 type=usize
+field CooldownV1.unlocked offset=48 type=bool
+layout EntityViewV1 align=8
+size EntityViewV1 = 24
+field EntityViewV1.size offset=0 type=usize
+field EntityViewV1.vtable offset=8 type=*constEntityViewVtableV1
+field EntityViewV1.state offset=16 type=*conststd::ffi::c_void
+layout EntityViewVtableV1 align=8
+size EntityViewVtableV1 = 104
+field EntityViewVtableV1.size offset=0 type=usize
+field EntityViewVtableV1.id offset=8 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->usize>
+field EntityViewVtableV1.team offset=16 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->usize>
+field EntityViewVtableV1.level offset=24 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->usize>
+field EntityViewVtableV1.kind offset=32 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->u32>
+field EntityViewVtableV1.hp offset=40 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void,*mutusize,*mutusize)>
+field EntityViewVtableV1.stat offset=48 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void,*mutStatV1)>
+field EntityViewVtableV1.pos offset=56 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void,*mutu64,*mutu64)>
+field EntityViewVtableV1.shield offset=64 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->usize>
+field EntityViewVtableV1.buff_count offset=72 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->usize>
+field EntityViewVtableV1.buff_at offset=80 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void,usize,*mutBuffV1)->
+bool>
+field EntityViewVtableV1.cc_count offset=88 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void)->usize>
+field EntityViewVtableV1.cc_at offset=96 type=Option<unsafeextern"C"fn(*conststd::ffi::c_void,usize,*mutCcV1)->
+bool>

@@ -31,6 +31,21 @@ pub struct DraftCtxV1 {
     /// tags/stats). Empty on hosts older than this field.
     pub champion_briefs_ptr: *const crate::ChampionBriefV1,
     pub champion_briefs_len: usize,
+    // -- level 10 --
+    /// Athlete ids of the deciding team's lineup, in lane-slot order; empty
+    /// when the host does not know the lineup.
+    pub ally_athletes_ptr: *const usize,
+    pub ally_athletes_len: usize,
+    /// Athlete ids of the opposing lineup, same rules.
+    pub enemy_athletes_ptr: *const usize,
+    pub enemy_athletes_len: usize,
+    /// Team ids; usize::MAX when unknown.
+    pub ally_team: usize,
+    pub enemy_team: usize,
+    /// [`crate::LaneV1`] code of each lane slot to fill — set in the
+    /// `Position` phase only (`decide_positions`), empty otherwise.
+    pub slot_lanes_ptr: *const u32,
+    pub slot_lanes_len: usize,
 }
 
 /// Mod-implemented draft score hook. Score slots return an
@@ -75,6 +90,20 @@ pub struct DraftHookVtableV1 {
             ctx: *const DraftCtxV1,
             out_champion: *mut usize,
         ) -> bool,
+    >,
+    // -- level 10 --
+    /// Full override of the lane assignment after the last pick (phase
+    /// `Position`): write `out_order[slot]` = index into the ally picks for
+    /// every slot of `slot_lanes` and return how many were written. Anything
+    /// but a complete permutation is ignored (0 = keep the engine's
+    /// assignment); of multiple hooks the last deciding one wins.
+    pub decide_positions: Option<
+        unsafe extern "C" fn(
+            userdata: *const c_void,
+            ctx: *const DraftCtxV1,
+            out_order: *mut usize,
+            cap: usize,
+        ) -> usize,
     >,
 }
 

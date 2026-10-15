@@ -1,5 +1,6 @@
 //! The client side, once per frame: the save's history (`history`, on the management screens
-//! only) and the ban/pick screen (`screen`).
+//! only), the fielded players' proficiency (`athletes`, on the management screens and the
+//! ban/pick screen) and the ban/pick screen (`screen`).
 
 use std::collections::HashSet;
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -7,6 +8,7 @@ use std::time::Instant;
 
 use mod_api_stable::{ClientSceneKindV1, RecordKindV1, StableClient, StableExtension};
 
+use crate::athletes::Reader;
 use crate::config;
 use crate::history::{History, Source};
 use crate::screen::Screen;
@@ -40,6 +42,9 @@ struct State {
     /// The save's champion ids (cards are named by them), and the save they were read for.
     champions: HashSet<String>,
     champions_for: Option<(usize, String)>,
+    /// The fielded players' proficiency, and the save it is for.
+    athletes: Reader,
+    athletes_for: Option<(usize, String)>,
 }
 
 static STATE: Mutex<Option<State>> = Mutex::new(None);
@@ -57,6 +62,8 @@ impl StableExtension for ClientExt {
             if let Some(mut st) = guard.take() {
                 st.screen.close();
                 st.history.reset();
+                st.athletes.reset();
+                crate::hook::set_player_team(None);
             }
             return;
         }
@@ -68,6 +75,17 @@ impl StableExtension for ClientExt {
         // records are read on the management screens only: not a frame around a match is spent
         let read = cfg.enabled && cfg.history && matches!(ctx.client_scene_kind(), None | Some(ClientSceneKindV1::Main));
         st.history.tick(&mut ClientSource { ctx }, now, read);
+        // the seating log names the player's team
+        crate::hook::set_player_team(st.history.save.as_ref().map(|s| s.0));
+        // the fielded players' proficiency (athlete ids are per save); read on the management
+        // screens and on the ban/pick screen, where the AI opponent's line-up is seated
+        if st.athletes_for != st.history.save {
+            st.athletes_for = st.history.save.clone();
+            st.athletes.reset();
+        }
+        let scene = ctx.client_scene_kind();
+        let read_athletes = cfg.enabled && cfg.ai && (matches!(scene, None | Some(ClientSceneKindV1::Main)) || st.screen.is_on());
+        st.athletes.tick(&mut ClientSource { ctx }, now, read_athletes);
         // asked again for a new save, and now and then while the game has none to give
         if st.champions_for != st.history.save || (st.champions.is_empty() && st.frame.is_multiple_of(120)) {
             st.champions_for = st.history.save.clone();

@@ -160,6 +160,11 @@ impl Screen {
         }
     }
 
+    /// The ban/pick screen is open.
+    pub fn is_on(&self) -> bool {
+        self.on
+    }
+
     /// The ban/pick screen closed (or the game was left from it): positions learned on it are
     /// saved, and the hook no longer logs drafts as the player's.
     pub fn close(&mut self) {
@@ -237,9 +242,9 @@ impl Screen {
     }
 }
 
-/// The position of each player's pick slot, as the slot's player card says - a team's picks fill
-/// them in order, and the AI lock assumes the order top, jungle, mid, bottom, support. Logged once
-/// per ban/pick screen; true once read.
+/// The position of each player's pick slot, as the slot's player card says (a team's picks show
+/// in them in pick order until each team is seated). Logged once per ban/pick screen; true once
+/// read.
 fn log_slots(ui: &impl Ui) -> bool {
     let mut sides = Vec::new();
     for side in ["blue", "red"] {
@@ -252,9 +257,8 @@ fn log_slots(ui: &impl Ui) -> bool {
         if lanes.iter().any(Option::is_none) {
             return false;
         }
-        let standard = lanes.iter().enumerate().all(|(k, l)| *l == Some(k));
         let names: Vec<&str> = lanes.iter().flatten().map(|l| lanes::ROLES[*l]).collect();
-        sides.push(format!("{side} {}{}", names.join(","), if standard { "" } else { " (NOT the usual order: AI picks may go to the wrong player)" }));
+        sides.push(format!("{side} {}", names.join(",")));
     }
     diag::log(&format!("[ui] pick slots: {}", sides.join("; ")));
     true
