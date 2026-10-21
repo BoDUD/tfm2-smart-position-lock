@@ -168,6 +168,69 @@ stable_code_enum!(
     }
 );
 
+stable_code_enum!(
+    /// Action slot of a champion (ABI level 10) — what the cooldown slots
+    /// address.
+    SkillSlotV1 {
+        Attack = 0,
+        Skill = 1,
+        Skill2 = 2,
+        Ult = 3,
+    }
+);
+
+stable_code_enum!(
+    /// Coarse kind of a simulation entity (ABI level 10). Summoned units
+    /// (ghouls, jiangshi, bears, eagles, revenants, illusions) share
+    /// `Summon`. Mods must tolerate unknown codes.
+    EntityKindV1 {
+        Champion = 0,
+        Minion = 1,
+        Jungle = 2,
+        Epic = 3,
+        Serpen = 4,
+        Tower = 5,
+        Nexus = 6,
+        Summon = 7,
+    }
+);
+
+/// Cooldown state of one action slot (ABI level 10). Charges follow the
+/// engine model: the slot's full `cooltime` refills `max_charges` uses and
+/// one use costs `cooltime / max_charges`. Frozen value type; read through
+/// `size`.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CooldownV1 {
+    pub size: usize,
+    /// Remaining cooldown in ticks — the counter `player_cooldowns` reports.
+    pub remaining: usize,
+    /// Full cycle in ticks, after cooldown reduction.
+    pub cooltime: usize,
+    pub max_charges: usize,
+    /// Uses available right now.
+    pub charges: usize,
+    /// Ticks until one more charge is ready; 0 when every charge is.
+    pub next_charge_ticks: usize,
+    /// False while the slot is level-locked (skill2 before level 3, ult
+    /// before level 5) or the champion has no action there.
+    pub unlocked: bool,
+}
+
+impl Default for CooldownV1 {
+    fn default() -> Self {
+        Self {
+            size: core::mem::size_of::<Self>(),
+            remaining: 0,
+            cooltime: 0,
+            max_charges: 0,
+            charges: 0,
+            next_charge_ticks: 0,
+            unlocked: false,
+        }
+    }
+}
+
 /// Origin of the running simulation (ABI level 6). `u64::MAX` marks an
 /// unknown id / set. Frozen value type; read through `size`.
 #[repr(C)]
@@ -360,10 +423,13 @@ stable_code_enum!(
 );
 
 stable_code_enum!(
-    /// Mirror of game-core `DraftScorePhase`.
+    /// Mirror of game-core `DraftScorePhase`. `Position` (ABI level 10) is
+    /// the lane-assignment step after the last pick — only
+    /// `decide_positions` sees it.
     DraftPhaseV1 {
         Ban = 0,
         Pick = 1,
+        Position = 2,
     }
 );
 
@@ -409,6 +475,12 @@ stable_code_enum!(
     SettingTargetV1 {
         GameSetting = 0,
         ItemSetting = 1,
+        // ABI level 10: the save's balance auto-patcher parameters (how many
+        // champions each patch buffs/nerfs per tier, staleness and unpicked
+        // thresholds). Server-side only — the client read slot returns false.
+        // Writes apply from the next patch; an all-zero document reads as
+        // unset and falls back to the defaults, as in the database editor.
+        AutoPatch = 2,
     }
 );
 

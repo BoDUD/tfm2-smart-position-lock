@@ -6,9 +6,10 @@
 //!   save's matches;
 //! - every champion of the ban/pick grid (and any with positions of its own), 24 to a page: its
 //!   face and name, the five positions - lit where it may play - and whether those are the
-//!   player's own (`[positions]`, "手动", with ↺ to go back) or worked out ("自动": the card's main
-//!   positions and the save's matches). A click on a position turns it on or off for that
-//!   champion; it then has positions of its own. The last position cannot be turned off.
+//!   player's own (`[positions]`, "手动", with ↺ to go back), built in ("内置": a League of Legends
+//!   champion's official main positions) or worked out ("自动": the card's main positions and the
+//!   save's matches). A click on a position turns it on or off for that champion; it then has
+//!   positions of its own. The last position cannot be turned off.
 //!
 //! The panel takes the clicks over its own area (a click between its buttons must not reach a
 //! champion card underneath); the rest of the screen stays usable.
@@ -39,9 +40,8 @@ const ON_HOVER: &str = "#38a374ff";
 const OFF_HOVER: &str = "#3a3e50ff";
 const SLOT: &str = "#232533ff";
 
-/// The switches: setting key, label.
-const SWITCHES: [(&str, &str); 4] =
-    [("enabled", "总开关 Lock"), ("ai", "锁定 AI 选人"), ("player", "锁定我自己选人"), ("history", "参考存档战绩")];
+/// The switches: setting key (also its label's key in `text/ui.i18n`: `smart_position_lock.sw_<key>`).
+const SWITCHES: [&str; 4] = ["enabled", "ai", "player", "history"];
 
 #[derive(Default)]
 pub struct Panel {
@@ -80,6 +80,12 @@ fn position_ref(lane: usize) -> String {
     format!("#asset/base/text/ui?position.{}", lanes::ROLES[lane].to_ascii_lowercase())
 }
 
+/// The panel's own words: `text/ui.i18n` (merged into the game's ui text by `mod.override_info`), shown in the
+/// game's language like the position and champion names.
+fn text_ref(key: &str) -> String {
+    format!("#asset/base/text/ui?smart_position_lock.{key}")
+}
+
 fn name_ref(champion: &str) -> String {
     format!("#asset/base/text/champion?description.{champion}.name")
 }
@@ -108,7 +114,7 @@ fn switch_on(cfg: &Config, key: &str) -> bool {
 fn source(cfg: &Config, list: &[String], page: usize) -> String {
     let played = lanes::played();
     let mut body = String::new();
-    body.push_str(&label("title", 28, 14, 800, 32, 22, TEXT, "Left", "智能位置锁定 · Smart Position Lock"));
+    body.push_str(&label("title", 28, 14, 800, 32, 22, TEXT, "Left", &text_ref("title")));
     body.push_str(&label(
         "hint",
         28,
@@ -118,7 +124,7 @@ fn source(cfg: &Config, list: &[String], page: usize) -> String {
         13,
         DIM,
         "Left",
-        "点位置按钮设置英雄能打的位置，立即生效并保存到 settings.ini。F7 / Esc 关闭",
+        &text_ref("hint"),
     ));
     // the game's own close button look
     body.push_str(
@@ -126,8 +132,9 @@ fn source(cfg: &Config, list: &[String], page: usize) -> String {
          source: \"asset/base/ui/icons/cross\"; color: #c2c6ceff; hover: { color: #e8e8e8ff; } \
          active: { color: #e8e8e8ff; } } ",
     );
-    for (i, (key, text)) in SWITCHES.iter().enumerate() {
-        body.push_str(&button(&format!("sw_{key}"), 28 + i as i32 * 212, 80, 200, 36, switch_on(cfg, key), 14, text));
+    for (i, key) in SWITCHES.iter().enumerate() {
+        let text = text_ref(&format!("sw_{key}"));
+        body.push_str(&button(&format!("sw_{key}"), 28 + i as i32 * 212, 80, 200, 36, switch_on(cfg, key), 14, &text));
     }
     let count = pages(list.len());
     body.push_str(&button("prev", 1008, 80, 44, 36, false, 16, "◀"));
@@ -142,12 +149,13 @@ fn source(cfg: &Config, list: &[String], page: usize) -> String {
         13,
         DIM,
         "Left",
-        "绿色 = 能打这个位置 · 手动 = 你指定的位置（↺ 恢复自动） · 自动 = 选人卡片上的主位置 + 本存档实际打过的位置",
+        &text_ref("legend"),
     ));
     for (i, champ) in list.iter().skip(page * PER_PAGE).take(PER_PAGE).enumerate() {
         let x = 28 + (i / PER_COLUMN) as i32 * 600;
         let y = 158 + (i % PER_COLUMN) as i32 * 54;
-        let own = cfg.override_of(champ).is_some();
+        let from = lanes::source(champ, cfg);
+        let own = from == lanes::Source::Settings;
         let lit = lanes::allowed(champ, cfg, played.as_deref());
         let mut row = format!(
             "#face:color {{ x: 0px; y: 3px; width: 44px; height: 44px; color: {SLOT}; ignore_event: true; \
@@ -158,7 +166,12 @@ fn source(cfg: &Config, list: &[String], page: usize) -> String {
         for (lane, on) in lit.iter().enumerate() {
             row.push_str(&button(&format!("l{lane}"), 206 + lane as i32 * 58, 8, 54, 34, *on, 13, &position_ref(lane)));
         }
-        row.push_str(&label("src", 500, 0, 40, 50, 12, if own { TEXT } else { DIM }, "Center", if own { "手动" } else { "自动" }));
+        let src = match from {
+            lanes::Source::Settings => "src_manual",
+            lanes::Source::Preset => "src_builtin",
+            lanes::Source::Game => "src_auto",
+        };
+        row.push_str(&label("src", 500, 0, 40, 50, 12, if own { TEXT } else { DIM }, "Center", &text_ref(src)));
         if own {
             row.push_str(&button("auto", 544, 8, 32, 34, false, 15, "↺"));
         }
@@ -175,7 +188,7 @@ fn source(cfg: &Config, list: &[String], page: usize) -> String {
         13,
         DIM,
         "Left",
-        &format!("{} 个英雄。英雄在选人界面出现过一次后才会列在这里。", list.len()),
+        &text_ref("foot"),
     ));
     format!(
         "{NODE}:empty {{ width: 100%; height: 100%; ignore_event: true; \
@@ -223,7 +236,7 @@ impl Panel {
         if clicked("next") {
             self.page = (self.page + 1) % pages(list.len());
         }
-        for (key, _) in SWITCHES {
+        for key in SWITCHES {
             if clicked(&format!("sw_{key}")) {
                 config::write_switch(key, !switch_on(&cfg, key));
             }
@@ -271,7 +284,7 @@ impl Panel {
         for what in ["close", "prev", "next"] {
             ui.on_click(&format!("{base}.{what}"));
         }
-        for (key, _) in SWITCHES {
+        for key in SWITCHES {
             ui.on_click(&format!("{base}.sw_{key}"));
         }
         for (i, champ) in self.rows.iter().enumerate() {
@@ -320,14 +333,14 @@ mod tests {
         assert_eq!(ui.icons.get(&format!("{row}.face.icon")).map(String::as_str), Some("league_c00"));
         assert_eq!(ui.text(&format!("{row}.name")).as_deref(), Some("#asset/base/text/champion?description.league_c00.name"));
         assert_eq!(ui.text(&format!("{row}.l2.t")).as_deref(), Some("#asset/base/text/ui?position.mid"));
-        assert_eq!(ui.text(&format!("{row}.src")).as_deref(), Some("自动"));
+        assert_eq!(ui.text(&format!("{row}.src")).as_deref(), Some("#asset/base/text/ui?smart_position_lock.src_auto"));
         assert_eq!(ui.text("main.spl_panel.box.page").as_deref(), Some("1 / 2"));
 
         // a position clicked: the champion gets positions of its own, written to the file
         ui.click(&format!("{row}.l0"));
         frame(&mut p, &mut ui, 2, &[]);
         assert_eq!(config::get().override_of("league_c00"), Some([true, false, true, false, true]));
-        assert_eq!(ui.text(&format!("{row}.src")).as_deref(), Some("手动"), "drawn again");
+        assert_eq!(ui.text(&format!("{row}.src")).as_deref(), Some("#asset/base/text/ui?smart_position_lock.src_manual"), "drawn again");
         let file = std::fs::read_to_string(crate::paths::mod_dir().join(config::FILE)).unwrap();
         assert!(file.contains("league_c00=Top,Mid,Support"), "{file}");
         // the last position stays on
@@ -372,6 +385,39 @@ mod tests {
         frame(&mut p, &mut ui, 45, &[]);
         assert!(!p.is_open());
 
+        let _ = std::fs::remove_file(crate::paths::mod_dir().join(config::FILE));
+        config::set(Config::default());
+        lanes::clear();
+    }
+
+    #[test]
+    fn league_champions_show_their_built_in_positions() {
+        let _serial = crate::tests::serial();
+        crate::tests::temp_dir();
+        let _ = std::fs::remove_file(crate::paths::mod_dir().join(config::FILE));
+        config::load_now();
+        lanes::clear();
+        // the card said top/jungle, as it does for every League champion the game has not seen
+        lanes::learn("league_bard", [true, true, false, false, false]);
+        let mut ui = FakeUi::default();
+        ui.add("main", None);
+        let mut p = Panel::default();
+        frame(&mut p, &mut ui, 1, &["F7"]);
+        let row = "main.spl_panel.box.r0";
+        assert_eq!(ui.text(&format!("{row}.src")).as_deref(), Some("#asset/base/text/ui?smart_position_lock.src_builtin"));
+        assert!(!ui.exists(&format!("{row}.auto")), "nothing to go back to");
+        // top turned on: his own positions, the main one (support) still first
+        ui.click(&format!("{row}.l0"));
+        frame(&mut p, &mut ui, 2, &[]);
+        let file = std::fs::read_to_string(crate::paths::mod_dir().join(config::FILE)).unwrap();
+        assert!(file.contains("league_bard=Support,Top"), "{file}");
+        assert_eq!(config::get().main_of("league_bard"), Some(4));
+        assert_eq!(ui.text(&format!("{row}.src")).as_deref(), Some("#asset/base/text/ui?smart_position_lock.src_manual"));
+        // back to the built-in positions
+        ui.click(&format!("{row}.auto"));
+        frame(&mut p, &mut ui, 3, &[]);
+        assert_eq!(ui.text(&format!("{row}.src")).as_deref(), Some("#asset/base/text/ui?smart_position_lock.src_builtin"));
+        assert_eq!(lanes::allowed("league_bard", &config::get(), None), [false, false, false, false, true]);
         let _ = std::fs::remove_file(crate::paths::mod_dir().join(config::FILE));
         config::set(Config::default());
         lanes::clear();

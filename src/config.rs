@@ -4,7 +4,8 @@
 //!
 //! `[positions]` overrides what the mod works out for a champion: `ahri=Mid,Support` (the
 //! champion id as the game names it, any case). An override is used as it is - the champion's
-//! main positions and history are not added to it.
+//! main positions and history are not added to it. The first position listed is the one the
+//! champion plays when its team has a choice (see `lanes::seat`).
 
 use std::collections::HashMap;
 use std::fs;
@@ -22,7 +23,7 @@ const CHECK_EVERY: Duration = Duration::from_secs(3);
 pub struct Config {
     /// The whole lock.
     pub enabled: bool,
-    /// The AI teams' picks.
+    /// The AI teams' picks, and where their picks play.
     pub ai: bool,
     /// The player's own picks on the ban/pick screen.
     pub player: bool,
@@ -32,11 +33,22 @@ pub struct Config {
     pub share: f32,
     /// By lower-case champion id.
     pub overrides: HashMap<String, Lanes>,
+    /// The first position listed for a champion in `[positions]`, by lower-case champion id.
+    pub mains: HashMap<String, usize>,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self { enabled: true, ai: true, player: true, history: true, min_games: 8, share: 0.15, overrides: HashMap::new() }
+        Self {
+            enabled: true,
+            ai: true,
+            player: true,
+            history: true,
+            min_games: 8,
+            share: 0.15,
+            overrides: HashMap::new(),
+            mains: HashMap::new(),
+        }
     }
 }
 
@@ -48,6 +60,11 @@ impl Config {
     pub fn override_of(&self, champion: &str) -> Option<Lanes> {
         self.overrides.get(&champion.to_lowercase()).copied()
     }
+
+    /// The first position of a champion's `[positions]` list.
+    pub fn main_of(&self, champion: &str) -> Option<usize> {
+        self.mains.get(&champion.to_lowercase()).copied()
+    }
 }
 
 const TEMPLATE: &str = "\
@@ -57,7 +74,7 @@ const TEMPLATE: &str = "\
 [lock]
 ; on / off: the whole lock (总开关)
 enabled=on
-; the AI teams' picks (AI 选人)
+; the AI teams' picks, and their lanes once their picks are in (game 0.6.4+) (AI 选人和分路)
 ai=on
 ; your own picks on the ban/pick screen: cards that do not fit are covered by a lock (你自己选人)
 player=on
@@ -65,15 +82,20 @@ player=on
 [history]
 ; a champion's positions are its two main positions on its ban/pick card, plus every position it
 ; has really played in this save: once it has min_games games, a position with at least `share`
-; of them counts. history=off uses the main positions only.
+; of them counts. history=off uses the main positions only. League of Legends champions use their
+; built-in positions instead.
 ; 英雄能打的位置 = 选人卡片上的两个主位置 + 本存档里实际打过的位置（至少 min_games 场、占比至少 share）
+; 英雄联盟英雄用内置的官方主位置，不受这里影响
 history=on
 min_games=8
 share=0.15
 
 [positions]
-; your own positions for a champion, used instead of everything above (champion id = position list)
-; 手动指定某个英雄的位置（英雄 id = 位置列表），会完全替代自动判断，例如：
+; your own positions for a champion, used instead of everything above (champion id = position list;
+; the first one is where it plays when its team has a choice). League of Legends champions need
+; nothing here: their official main positions are built in.
+; 手动指定某个英雄的位置（英雄 id = 位置列表，第一个是有得选时优先打的位置），会完全替代自动判断。
+; 英雄联盟英雄（league Mod）不用填：官方主位置已内置。例如：
 ; ahri=Mid,Support
 ";
 
@@ -258,10 +280,14 @@ pub fn write_switch(key: &str, on: bool) -> bool {
     write_value(section, key, Some(if on { "on" } else { "off" }))
 }
 
-/// A champion's own positions (`[positions]`), or `None` to go back to working them out.
+/// A champion's own positions (`[positions]`), or `None` to go back to working them out. The
+/// position it plays first (its own list's first, or the built-in one's) stays first while it is
+/// still on.
 pub fn write_positions(champion: &str, lanes: Option<Lanes>) -> bool {
     let value = lanes.map(|l| {
-        crate::lanes::ROLES.iter().enumerate().filter(|(i, _)| l[*i]).map(|(_, r)| *r).collect::<Vec<_>>().join(",")
+        let main = crate::lanes::main_lane(champion, &get()).filter(|m| l[*m]);
+        let order = main.into_iter().chain((0..5).filter(|i| l[*i] && Some(*i) != main));
+        order.map(|i| crate::lanes::ROLES[i]).collect::<Vec<_>>().join(",")
     });
     write_value("positions", champion, value.as_deref())
 }
@@ -301,18 +327,24 @@ pub fn parse(text: &str) -> (Config, Vec<String>) {
         let (key, value) = (key.trim(), value.trim());
         let result = if section == "positions" {
             let mut lanes = [false; 5];
+            let mut first = None;
             let mut bad = Vec::new();
             for part in value.split([',', '/', ' ']).filter(|s| !s.is_empty()) {
                 match parse_role(part) {
-                    Some(r) => lanes[r] = true,
+                    Some(r) => {
+                        lanes[r] = true;
+                        first = first.or(Some(r));
+                    }
                     None => bad.push(part),
                 }
             }
-            if lanes == [false; 5] || !bad.is_empty() {
-                Err(format!("expected positions like Mid,Support, got {value:?}"))
-            } else {
-                cfg.overrides.insert(key.to_lowercase(), lanes);
-                Ok(())
+            match first {
+                Some(main) if bad.is_empty() => {
+                    cfg.overrides.insert(key.to_lowercase(), lanes);
+                    cfg.mains.insert(key.to_lowercase(), main);
+                    Ok(())
+                }
+                _ => Err(format!("expected positions like Mid,Support, got {value:?}")),
             }
         } else {
             set_key(&mut cfg, key, value)
@@ -356,12 +388,18 @@ mod tests {
     fn the_league_preset_reads_cleanly() {
         let (cfg, warnings) = parse(include_str!("../presets/league_positions.ini"));
         assert!(warnings.is_empty(), "{warnings:?}");
-        assert_eq!(cfg.overrides.len(), 71);
+        assert_eq!(cfg.overrides.len(), 150);
+        assert!(cfg.overrides.keys().all(|c| c.starts_with("league_")));
         assert_eq!(cfg.override_of("league_ahri"), Some([false, false, true, false, false]));
         assert_eq!(cfg.override_of("league_vayne"), Some([true, false, false, true, false]));
-        // every position has plenty of champions
+        assert_eq!(cfg.override_of("league_bard"), Some([false, false, false, false, true]));
+        // the first position listed is the main one
+        assert_eq!((cfg.main_of("league_vayne"), cfg.main_of("league_senna")), (Some(3), Some(4)));
+        assert_eq!(cfg.mains.len(), 150);
+        // every position has plenty of champions, and plenty that play nothing else
         for lane in 0..5 {
-            assert!(cfg.overrides.values().filter(|l| l[lane]).count() >= 12, "position {lane}");
+            assert!(cfg.overrides.values().filter(|l| l[lane]).count() >= 20, "position {lane}");
+            assert!(cfg.mains.values().filter(|m| **m == lane).count() >= 15, "main position {lane}");
         }
     }
 

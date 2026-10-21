@@ -12,7 +12,7 @@
 
 use std::ffi::c_void;
 
-use crate::{BuffV1, FrameVtableV1, InputTargetV1, SimVtableV1, StatV1, StrV1};
+use crate::{BuffV1, CcV1, FrameVtableV1, InputTargetV1, SimVtableV1, StatV1, StrV1};
 
 /// Per-callback simulation context handed to gameplay callbacks. Valid only
 /// for the duration of the callback; never store it.
@@ -23,6 +23,42 @@ pub struct SimCtxV1 {
     pub frame: *const FrameVtableV1,
     /// Opaque host state passed back to every sim/frame slot.
     pub state: *mut c_void,
+}
+
+/// Read-only view of one entity (ABI level 10), for engine queries that run
+/// without a simulation context — `range_adjust` and `can_use_with_move_ex`
+/// get the caster (and target) this way. Valid only for the call.
+#[repr(C)]
+pub struct EntityViewV1 {
+    pub size: usize,
+    pub vtable: *const EntityViewVtableV1,
+    /// Opaque host state passed back to every view slot.
+    pub state: *const c_void,
+}
+
+/// Getters of [`EntityViewV1`] — the read side of the sim entity slots, bound
+/// to one entity.
+#[repr(C)]
+pub struct EntityViewVtableV1 {
+    pub size: usize,
+    pub id: Option<unsafe extern "C" fn(state: *const c_void) -> usize>,
+    pub team: Option<unsafe extern "C" fn(state: *const c_void) -> usize>,
+    pub level: Option<unsafe extern "C" fn(state: *const c_void) -> usize>,
+    /// [`crate::EntityKindV1`] code; u32::MAX when unknown.
+    pub kind: Option<unsafe extern "C" fn(state: *const c_void) -> u32>,
+    pub hp: Option<
+        unsafe extern "C" fn(state: *const c_void, out_current: *mut usize, out_max: *mut usize),
+    >,
+    /// Current stats, buffs included.
+    pub stat: Option<unsafe extern "C" fn(state: *const c_void, out: *mut StatV1)>,
+    pub pos: Option<unsafe extern "C" fn(state: *const c_void, out_x: *mut u64, out_y: *mut u64)>,
+    pub shield: Option<unsafe extern "C" fn(state: *const c_void) -> usize>,
+    pub buff_count: Option<unsafe extern "C" fn(state: *const c_void) -> usize>,
+    pub buff_at:
+        Option<unsafe extern "C" fn(state: *const c_void, index: usize, out: *mut BuffV1) -> bool>,
+    pub cc_count: Option<unsafe extern "C" fn(state: *const c_void) -> usize>,
+    pub cc_at:
+        Option<unsafe extern "C" fn(state: *const c_void, index: usize, out: *mut CcV1) -> bool>,
 }
 
 /// A registered object: opaque mod-side state plus its function table.
@@ -183,6 +219,27 @@ pub struct ActionVtableV1 {
     >,
     pub can_use_with_move: Option<unsafe extern "C" fn(userdata: *const c_void) -> bool>,
     pub description: Option<unsafe extern "C" fn(userdata: *const c_void) -> StrV1>,
+    // -- level 10 --
+    /// AI cast gate (the engine's `Action::can_activate`): false keeps the AI
+    /// from trying this action now. `sim` is read-only.
+    pub can_activate: Option<
+        unsafe extern "C" fn(userdata: *const c_void, sim: *mut SimCtxV1, caster: usize) -> bool,
+    >,
+    /// Per-target AI gate (the engine's `Action::target_constraint`): false
+    /// keeps the AI from aiming this action at `target`. `sim` is read-only.
+    pub target_constraint: Option<
+        unsafe extern "C" fn(
+            userdata: *const c_void,
+            sim: *mut SimCtxV1,
+            caster: usize,
+            target: usize,
+        ) -> bool,
+    >,
+    /// Caster-aware `can_use_with_move`, asked each time the action starts.
+    /// Preferred over `can_use_with_move` when present.
+    pub can_use_with_move_ex: Option<
+        unsafe extern "C" fn(userdata: *const c_void, caster: *const EntityViewV1) -> bool,
+    >,
 }
 
 /// Effect logic table.
@@ -239,6 +296,20 @@ pub struct EffectTypeVtableV1 {
     /// Returns false when not a linear projectile.
     pub linear_move_speed:
         Option<unsafe extern "C" fn(userdata: *const c_void, out: *mut usize) -> bool>,
+    // -- level 10 --
+    /// True when `range_adjust` can return non-zero. The engine skips the
+    /// `range_adjust` call for effects that report false.
+    pub may_adjust_range: Option<unsafe extern "C" fn(userdata: *const c_void) -> bool>,
+    /// Extra range for this caster/target pair on top of
+    /// `range + growth_range * (level - 1)` (the engine's
+    /// `EffectType::range_adjust`) — read by every range check, AI included.
+    pub range_adjust: Option<
+        unsafe extern "C" fn(
+            userdata: *const c_void,
+            caster: *const EntityViewV1,
+            target: *const EntityViewV1,
+        ) -> u64,
+    >,
 }
 
 /// Passive callback table.
@@ -315,6 +386,20 @@ pub struct PassiveVtableV1 {
     /// registered by name. Absent = the mod ignores params.
     pub configure: Option<
         unsafe extern "C" fn(userdata: *mut c_void, params_json: *const u8, params_json_len: usize),
+    >,
+    // -- level 10 --
+    /// Fires when the owner is credited with a minion or jungle-camp kill —
+    /// the player who takes the CS (a support's last hit can credit a nearby
+    /// ally). `on_kill` stays champion kills only; epic objectives reward the
+    /// whole team and fire neither. `victim` is the killed entity.
+    pub on_unit_kill: Option<
+        unsafe extern "C" fn(
+            userdata: *mut c_void,
+            sim: *mut SimCtxV1,
+            player: usize,
+            entity: usize,
+            victim: usize,
+        ),
     >,
 }
 

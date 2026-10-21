@@ -78,6 +78,8 @@ pub fn contract_dump() -> String {
         ("ClientSceneKindV1", ClientSceneKindV1::VARIANTS),
         ("InputEventKindV1", InputEventKindV1::VARIANTS),
         ("SimOriginKindV1", SimOriginKindV1::VARIANTS),
+        ("SkillSlotV1", SkillSlotV1::VARIANTS),
+        ("EntityKindV1", EntityKindV1::VARIANTS),
     ] {
         for (variant, code) in variants {
             out.push_str(&format!("enumcode {}.{} = {}\n", name, variant, code));
@@ -241,6 +243,9 @@ pub fn contract_dump() -> String {
         cooltime_use_count: Option<unsafe extern "C" fn(*const std::ffi::c_void, *const StatV1) -> usize>,
         can_use_with_move: Option<unsafe extern "C" fn(*const std::ffi::c_void) -> bool>,
         description: Option<unsafe extern "C" fn(*const std::ffi::c_void) -> StrV1>,
+        can_activate: Option<unsafe extern "C" fn(*const std::ffi::c_void, *mut SimCtxV1, usize) -> bool>,
+        target_constraint: Option<unsafe extern "C" fn(*const std::ffi::c_void, *mut SimCtxV1, usize, usize) -> bool>,
+        can_use_with_move_ex: Option<unsafe extern "C" fn(*const std::ffi::c_void, *const EntityViewV1) -> bool>,
     });
 
     dump_struct!(out, EffectTypeVtableV1 {
@@ -258,6 +263,8 @@ pub fn contract_dump() -> String {
         on_caster: Option<unsafe extern "C" fn(*const std::ffi::c_void) -> bool>,
         can_move: Option<unsafe extern "C" fn(*const std::ffi::c_void) -> bool>,
         linear_move_speed: Option<unsafe extern "C" fn(*const std::ffi::c_void, *mut usize) -> bool>,
+        may_adjust_range: Option<unsafe extern "C" fn(*const std::ffi::c_void) -> bool>,
+        range_adjust: Option<unsafe extern "C" fn(*const std::ffi::c_void, *const EntityViewV1, *const EntityViewV1) -> u64>,
     });
 
     dump_struct!(out, PassiveVtableV1 {
@@ -274,6 +281,7 @@ pub fn contract_dump() -> String {
         on_dead: Option<unsafe extern "C" fn(*mut std::ffi::c_void, *mut SimCtxV1, usize)>,
         on_kill_ex: Option<unsafe extern "C" fn(*mut std::ffi::c_void, *mut SimCtxV1, usize, usize, usize)>,
         configure: Option<unsafe extern "C" fn(*mut std::ffi::c_void, *const u8, usize)>,
+        on_unit_kill: Option<unsafe extern "C" fn(*mut std::ffi::c_void, *mut SimCtxV1, usize, usize, usize)>,
     });
 
     dump_struct!(out, ItemVtableV1 {
@@ -396,6 +404,9 @@ pub fn contract_dump() -> String {
         entity_grab: Option<unsafe extern "C" fn(*mut std::ffi::c_void, usize, EntityHandleV1, usize, usize) -> bool>,
         entity_pull: Option<unsafe extern "C" fn(*mut std::ffi::c_void, usize, EntityHandleV1, usize, usize) -> bool>,
         entity_stack_buff: Option<unsafe extern "C" fn(*mut std::ffi::c_void, EntityHandleV1, *const BuffV1, usize, u32) -> usize>,
+        entity_kind: Option<unsafe extern "C" fn(*const std::ffi::c_void, EntityHandleV1) -> u32>,
+        entity_cooldown: Option<unsafe extern "C" fn(*const std::ffi::c_void, EntityHandleV1, u32, *mut CooldownV1) -> bool>,
+        entity_reduce_cooldown: Option<unsafe extern "C" fn(*mut std::ffi::c_void, EntityHandleV1, u32, usize) -> bool>,
     });
 
     dump_struct!(out, UnitAttackV1 {
@@ -643,6 +654,14 @@ pub fn contract_dump() -> String {
         enemy_pick_len: usize,
         champion_briefs_ptr: *const ChampionBriefV1,
         champion_briefs_len: usize,
+        ally_athletes_ptr: *const usize,
+        ally_athletes_len: usize,
+        enemy_athletes_ptr: *const usize,
+        enemy_athletes_len: usize,
+        ally_team: usize,
+        enemy_team: usize,
+        slot_lanes_ptr: *const u32,
+        slot_lanes_len: usize,
     });
 
     dump_struct!(out, DraftHookVtableV1 {
@@ -654,6 +673,7 @@ pub fn contract_dump() -> String {
         score_pick: Option<unsafe extern "C" fn(*const std::ffi::c_void, *const DraftCtxV1, usize, f32, *mut f32) -> u32>,
         decide_ban: Option<unsafe extern "C" fn(*const std::ffi::c_void, *const DraftCtxV1, *mut usize) -> bool>,
         decide_pick: Option<unsafe extern "C" fn(*const std::ffi::c_void, *const DraftCtxV1, *mut usize) -> bool>,
+        decide_positions: Option<unsafe extern "C" fn(*const std::ffi::c_void, *const DraftCtxV1, *mut usize, usize) -> usize>,
     });
 
     dump_struct!(out, ItemBuildCtxV1 {
@@ -806,6 +826,38 @@ pub fn contract_dump() -> String {
         item_build_hooks_len: usize,
         native_passives_ptr: *const NativePassiveRegV1,
         native_passives_len: usize,
+    });
+
+    dump_struct!(out, CooldownV1 {
+        size: usize,
+        remaining: usize,
+        cooltime: usize,
+        max_charges: usize,
+        charges: usize,
+        next_charge_ticks: usize,
+        unlocked: bool,
+    });
+
+    dump_struct!(out, EntityViewV1 {
+        size: usize,
+        vtable: *const EntityViewVtableV1,
+        state: *const std::ffi::c_void,
+    });
+
+    dump_struct!(out, EntityViewVtableV1 {
+        size: usize,
+        id: Option<unsafe extern "C" fn(*const std::ffi::c_void) -> usize>,
+        team: Option<unsafe extern "C" fn(*const std::ffi::c_void) -> usize>,
+        level: Option<unsafe extern "C" fn(*const std::ffi::c_void) -> usize>,
+        kind: Option<unsafe extern "C" fn(*const std::ffi::c_void) -> u32>,
+        hp: Option<unsafe extern "C" fn(*const std::ffi::c_void, *mut usize, *mut usize)>,
+        stat: Option<unsafe extern "C" fn(*const std::ffi::c_void, *mut StatV1)>,
+        pos: Option<unsafe extern "C" fn(*const std::ffi::c_void, *mut u64, *mut u64)>,
+        shield: Option<unsafe extern "C" fn(*const std::ffi::c_void) -> usize>,
+        buff_count: Option<unsafe extern "C" fn(*const std::ffi::c_void) -> usize>,
+        buff_at: Option<unsafe extern "C" fn(*const std::ffi::c_void, usize, *mut BuffV1) -> bool>,
+        cc_count: Option<unsafe extern "C" fn(*const std::ffi::c_void) -> usize>,
+        cc_at: Option<unsafe extern "C" fn(*const std::ffi::c_void, usize, *mut CcV1) -> bool>,
     });
 
     out
