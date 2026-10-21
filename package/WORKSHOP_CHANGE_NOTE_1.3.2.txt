@@ -1,0 +1,5 @@
+1.3.2
+- 内置英雄联盟英雄增加 44 个（阿克尚、艾尼维亚、厄斐琉斯……黑默丁格、纳亚菲利、妮蔻等），共 150 个。
+- 适配游戏 0.6.5（稳定版 SDK 没变，功能照旧）。
+
+1.3.2: 44 more League champions built in (Akshan, Anivia, Aphelios ... Heimerdinger, Naafiri, Neeko) - 150 in all. Game 0.6.5 (the stable SDK is unchanged).
