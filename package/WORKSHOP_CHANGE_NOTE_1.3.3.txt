@@ -1,0 +1,4 @@
+1.3.3
+- 内置英雄联盟英雄增加 5 个（奎桑提、乌迪尔、奇亚娜、彗、艾翁），共 155 个。
+
+1.3.3: 5 more League champions built in (K'Sante, Udyr, Qiyana, Hwei, Ivern) - 155 in all.
