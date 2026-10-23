@@ -1,0 +1,4 @@
+1.3.8
+- 内置英雄联盟英雄增加扎克（打野，其次上单），共 160 个。
+
+1.3.8: Zac (jungle, then top) built in - 160 League champions in all.
