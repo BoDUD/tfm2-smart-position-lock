@@ -1,0 +1,4 @@
+1.3.7
+- 内置英雄联盟英雄增加阿兹尔（中路），共 159 个。
+
+1.3.7: Azir (mid) built in - 159 League champions in all.
