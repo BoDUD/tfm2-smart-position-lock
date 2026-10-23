@@ -1,0 +1,4 @@
+1.3.9
+- 内置英雄联盟英雄增加辛吉德（上单），共 161 个。
+
+1.3.9: Singed (top) built in - 161 League champions in all.
