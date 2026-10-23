@@ -535,7 +535,7 @@ pub(crate) mod tests {
         let _serial = crate::tests::serial();
         clear();
         let cfg = Config::default();
-        assert_eq!(preset_count(), 158, "every League champion");
+        assert_eq!(preset_count(), 159, "every League champion");
         // the card said top/jungle (nothing seen yet): the built-in list wins
         learn("league_bard", TOP_JG);
         assert_eq!(allowed("league_bard", &cfg, None), SUP);
