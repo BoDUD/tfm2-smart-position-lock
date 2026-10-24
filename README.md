@@ -5,7 +5,7 @@
 双方只会选还能放进剩余空位的英雄，AI 队伍选完后由本 Mod 把每个英雄安排到它能打的位置上。**不用任何设置**：装上就生效。原生 Mod（稳定版 Mod API，游戏 0.6 及以上；给 AI 队伍分路需要游戏 **0.6.4** 及以上）。
 
 - **英雄能打的位置自动判断**：
-  - 英雄联盟英雄（league Mod）：内置全部 164 个英雄的英雄联盟官方主位置（[`presets/league_positions.ini`](presets/league_positions.ini)），列在第一个的是它有得选时优先打的位置；
+  - 英雄联盟英雄（league Mod）：内置全部 165 个英雄的英雄联盟官方主位置（[`presets/league_positions.ini`](presets/league_positions.ini)），列在第一个的是它有得选时优先打的位置；
   - 其他英雄：选人卡片上游戏标注的两个主位置，加上本存档里它实际打过足够多的位置（大会比赛和单排都算）。卡片上的“主位置”是游戏统计的、这个英雄被用得最多的两个位置（游戏还没统计过的英雄一律显示“上路+打野”），不是英雄 Mod 设置的。主位置在你第一次打开选人界面时学会，存在 Mod 文件夹的 `positions.json` 里，之后 AI 之间的比赛也会用；
   - 你在 `settings.ini` 或 F7 面板里指定的位置优先于以上所有。
 - **按整队判断**：不会同时选两个只能打上路的英雄；能打多个位置的英雄会被安排到还空着的位置上。
@@ -40,7 +40,7 @@
 
 ## 英雄联盟英雄（league Mod）
 
-league Mod 没有给英雄设置位置，游戏也还没有它们的统计，选人卡片上显示的大多是“上路+打野”，自动判断用不上。1.3.0 起 Mod 内置了全部 164 个英雄的英雄联盟官方主位置（[`presets/league_positions.ini`](presets/league_positions.ini)，每行后面有中文名），**不用再复制到 `settings.ini`**。以前复制过的照旧有效（`settings.ini` 优先）；想改哪个英雄，在 F7 面板里点，或者把它那一行复制到 `settings.ini` 的 `[positions]` 段再改。
+league Mod 没有给英雄设置位置，游戏也还没有它们的统计，选人卡片上显示的大多是“上路+打野”，自动判断用不上。1.3.0 起 Mod 内置了全部 165 个英雄的英雄联盟官方主位置（[`presets/league_positions.ini`](presets/league_positions.ini)，每行后面有中文名），**不用再复制到 `settings.ini`**。以前复制过的照旧有效（`settings.ini` 优先）；想改哪个英雄，在 F7 面板里点，或者把它那一行复制到 `settings.ini` 的 `[positions]` 段再改。
 
 ## 出问题时
 
@@ -54,7 +54,7 @@ Mod 文件夹里的 `diag.log` 记录了 Mod 读到了什么，以及锁有没�
 
 ## English
 
-Teams only pick champions that can still take one of their open positions, and AI teams play them there - nothing to set up. A champion's positions are, first found: your own list in `settings.ini` (`[positions]`, e.g. `ahri=Mid,Support`, or press **F7** in game for a settings panel that writes it); the built-in official main positions of all 164 League of Legends champions (`presets/league_positions.ini`); otherwise its two main positions as the game shows them on its ban/pick card - the positions the game has seen it played in most (Top + Jungle while it has seen nothing), not something a champion mod sets - learned on the ban/pick screen and kept in `positions.json`, plus every position it has really played in your save (`min_games` games, `share` of them there). The first position of a list is the champion's main one.
+Teams only pick champions that can still take one of their open positions, and AI teams play them there - nothing to set up. A champion's positions are, first found: your own list in `settings.ini` (`[positions]`, e.g. `ahri=Mid,Support`, or press **F7** in game for a settings panel that writes it); the built-in official main positions of all 165 League of Legends champions (`presets/league_positions.ini`); otherwise its two main positions as the game shows them on its ban/pick card - the positions the game has seen it played in most (Top + Jungle while it has seen nothing), not something a champion mod sets - learned on the ban/pick screen and kept in `positions.json`, plus every position it has really played in your save (`min_games` games, `share` of them there). The first position of a list is the champion's main one.
 
 - **Picks.** A pick is legal when the team's picks and the candidate can still be seated one per position, in any pick order. The AI's picks are held to it by a draft score hook; your own by a lock over each card that does not fit, which takes the click. Bans are free, and when nothing on offer fits, everything does - a draft never gets stuck.
 - **Positions (game 0.6.4+).** Once an AI team's picks are in, the game seats them on its players' lanes by its own judgement (player proficiency and its champion statistics), whatever the pick order - a Garen picked for top could end up in support. The mod now seats them itself through the draft hook's `decide_positions` (stable ABI level 10): every champion in a position it can play, its main position when it has a choice; of seatings equally good by those two, the one that gives each champion to the fielded player who plays it best (the game's champion proficiency), then pick order. Proficiency only chooses between equally good seatings - it never seats a champion off its positions. When nothing is known about any of the five, the game's seating stays. Older games have no such hook: the mod still loads there (it declares the baseline ABI level) and holds the picks only. Your own team's lanes are yours to set in the swap phase.
