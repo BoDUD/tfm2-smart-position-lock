@@ -1,0 +1,4 @@
+1.3.11
+- 内置英雄联盟英雄增加塔莉垭（中路），共 163 个。
+
+1.3.11: Taliyah (mid) built in - 163 League champions in all.
