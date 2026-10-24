@@ -1,0 +1,4 @@
+1.3.14
+- 内置位置增加云顶之弈英雄爆爆（tft Mod，中路）：以前她不在内置列表里，位置靠选人卡片和存档里打过的位置，会被排去打野。
+
+1.3.14: Powder (the tft pack, mid) built in - before she was not on the list, so her positions came from the ban/pick card and your save, and she could be seated in the jungle.
