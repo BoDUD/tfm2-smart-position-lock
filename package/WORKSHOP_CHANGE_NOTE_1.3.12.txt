@@ -1,0 +1,4 @@
+1.3.12
+- 内置英雄联盟英雄增加奥瑞利安·索尔（中路），共 164 个。
+
+1.3.12: Aurelion Sol (mid) built in - 164 League champions in all.
