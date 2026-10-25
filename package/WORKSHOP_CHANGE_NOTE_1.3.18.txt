@@ -1,0 +1,4 @@
+1.3.18
+- 内置英雄联盟英雄增加安蓓萨（上路），共 168 个。
+
+1.3.18: Ambessa (top) built in - 168 League champions in all.
