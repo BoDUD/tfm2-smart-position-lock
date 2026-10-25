@@ -1,0 +1,4 @@
+1.3.20
+- 内置英雄联盟英雄增加特朗德尔（打野），共 170 个。
+
+1.3.20: Trundle (jungle) built in - 170 League champions in all.
