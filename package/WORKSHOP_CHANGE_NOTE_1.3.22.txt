@@ -1,0 +1,4 @@
+1.3.22
+- 内置英雄联盟英雄增加洛克（中路），共 171 个。
+
+1.3.22: Locke (mid) built in - 171 League champions in all.
