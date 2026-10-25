@@ -1,0 +1,4 @@
+1.3.17
+- 内置英雄联盟英雄增加兰博（上路），共 168 个。
+
+1.3.17: Rumble (top) built in - 168 League champions in all.
