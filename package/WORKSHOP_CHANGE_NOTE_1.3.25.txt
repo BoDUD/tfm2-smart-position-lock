@@ -1,0 +1,4 @@
+1.3.25
+- 内置位置增加云顶之弈英雄诺拉（tft Mod，中路）。
+
+1.3.25: Norra (the tft pack, mid) built in.
