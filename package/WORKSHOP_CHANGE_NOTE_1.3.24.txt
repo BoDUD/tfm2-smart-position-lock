@@ -1,0 +1,4 @@
+1.3.24
+- 内置英雄联盟英雄增加亚恒（上路），共 173 个。
+
+1.3.24: Zaahen (top) built in - 173 League champions in all.
