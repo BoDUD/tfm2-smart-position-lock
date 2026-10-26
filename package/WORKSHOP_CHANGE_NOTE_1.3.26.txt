@@ -1,0 +1,4 @@
+1.3.26
+- 内置位置增加云顶之弈英雄拉露恩（tft Mod，中路）。
+
+1.3.26: Alune (the tft pack, mid) built in.
