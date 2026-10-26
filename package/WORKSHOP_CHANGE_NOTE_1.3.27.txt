@@ -1,0 +1,4 @@
+1.3.27
+- 内置位置增加云顶之弈英雄希尔科（tft Mod，中路）。
+
+1.3.27: Silco (the tft pack, mid) built in.
