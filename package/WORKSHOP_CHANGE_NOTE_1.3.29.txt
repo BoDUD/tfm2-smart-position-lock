@@ -1,0 +1,4 @@
+1.3.29
+- 内置位置增加云顶之弈英雄洛里斯（tft Mod，辅助）。
+
+1.3.29: Loris (the tft pack, support) built in.
