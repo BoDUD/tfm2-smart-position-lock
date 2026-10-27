@@ -1,0 +1,4 @@
+1.3.30
+- 内置位置增加云顶之弈英雄可酷伯（tft Mod，上路）。
+
+1.3.30: Kobuko (the tft pack, top) built in.
