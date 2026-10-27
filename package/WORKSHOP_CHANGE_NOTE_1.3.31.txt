@@ -1,0 +1,4 @@
+1.3.31
+- 内置位置增加云顶之弈英雄范德尔（tft Mod，打野）。
+
+1.3.31: Vander (the tft pack, jungle) built in.
