@@ -1,0 +1,4 @@
+1.3.32
+- 内置位置增加云顶之弈英雄蔚奥莱（tft Mod，打野）。
+
+1.3.32: Violet (the tft pack, jungle) built in.
