@@ -1,0 +1,4 @@
+1.3.28
+- 内置位置增加云顶之弈英雄麦迪（tft Mod，下路）。
+
+1.3.28: Maddie (the tft pack, bot) built in.
