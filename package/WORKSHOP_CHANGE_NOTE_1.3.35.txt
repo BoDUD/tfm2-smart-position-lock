@@ -1,0 +1,4 @@
+1.3.35
+- 内置位置增加云顶之弈英雄刀疤（tft Mod，上路）。
+
+1.3.35: Scar (the tft pack, top) built in.
