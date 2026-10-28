@@ -535,7 +535,7 @@ pub(crate) mod tests {
         let _serial = crate::tests::serial();
         clear();
         let cfg = Config::default();
-        assert_eq!(preset_count(), 183, "every League champion and the tft pack's Powder, Norra, Alune, Silco, Maddie, Loris, Kobuko, Vander, Violet and Krug");
+        assert_eq!(preset_count(), 184, "every League champion and the tft pack's Powder, Norra, Alune, Silco, Maddie, Loris, Kobuko, Vander, Violet, Krug and Ao Shin");
         // the card said top/jungle (nothing seen yet): the built-in list wins
         learn("league_bard", TOP_JG);
         assert_eq!(allowed("league_bard", &cfg, None), SUP);

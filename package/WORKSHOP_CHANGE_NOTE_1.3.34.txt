@@ -1,0 +1,4 @@
+1.3.34
+- 内置位置增加云顶之弈英雄敖兴（tft Mod，中路）。
+
+1.3.34: Ao Shin (the tft pack, mid) built in.
