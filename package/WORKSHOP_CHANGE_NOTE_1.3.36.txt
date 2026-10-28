@@ -1,0 +1,4 @@
+1.3.36
+- 适配游戏 0.7.0：游戏自带的稳定版 Mod SDK 没变；选人界面在经典界面、新界面和主机布局下的节点都核对过，锁和 AI 分路照常工作。新加的四个基础英雄和其他基础英雄一样，从选人卡片学主位置。
+
+1.3.36: checked against game 0.7.0 - it ships the same stable mod SDK, and the ban/pick screen has the same nodes in the classic, new and console layouts. The four new base champions learn their main positions from their ban/pick cards like every base champion.

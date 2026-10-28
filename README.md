@@ -16,6 +16,7 @@
 - **禁用不受限制。没有任何合适的英雄时自动全部放开**，选人永远不会卡住。不知道你是蓝方还是红方时，你这边什么都不锁。
 - 和 **Patch Meta AI** 一起用：它的推荐会跳过被锁住的英雄。以前 Patch Meta AI 学到的英雄主位置会自动接过来。
 - 不要和另一个位置锁定 Mod（Champion Position Lock）同时开：两个锁会叠加，英雄要同时满足两边才能选。
+- **游戏 0.7.0**：游戏自带的稳定版 Mod SDK 和本 Mod 用的完全一样；选人界面在经典界面、新界面（浅色 / 深色）和主机布局下用的是同样的节点（英雄卡片、阶段、队名），锁和分路照常工作。新加的四个基础英雄（Gladiator、Ferryman、Bombardier、Hypnotist）和其他基础英雄一样，从选人卡片学主位置。
 
 ## 游戏内设置面板（F7）
 
@@ -61,4 +62,5 @@ Teams only pick champions that can still take one of their open positions, and A
 - **Where the proficiency comes from.** The draft hook cannot read records, so it notes every line-up the game shows it (`ally_athletes` / `enemy_athletes`, lane-slot order), and the save's competition matches add their players; the client reads those players' `champion_proficiency` and position ratings on the management screens and the ban/pick screen (at most two a frame), fielded players again every 10 minutes, everything again for another save. A team with a player not read yet is seated as if no player were known.
 - `diag.log` shows `[draft]` (each AI pick), `[seat]` (each AI team's seating, with each player and his proficiency with his champion, and a check that the line-up is in lane-slot order), `[athletes]` (what the player records gave), `[check]` and `[result]` (where every champion really played).
 - Build with `cargo build --release` (Windows) or `tools/build.sh` (packages `dist/smart_position_lock-<version>.zip`).
-- MIT licensed. `vendor/mod-api-stable` is TeamSamoyed's SDK (game 0.6.5, ABI level 10: 0.6.4's plus the frozen abi_level_10.txt), unmodified.
+- Game 0.7.0 ships the same stable SDK, and its ban/pick screen has the same nodes (cards, phase, team names) in the classic layout, the new UI (light / dark) and the console layout: nothing changes. Its four new base champions (Gladiator, Ferryman, Bombardier, Hypnotist) learn their main positions from their cards like every base champion.
+- MIT licensed. `vendor/mod-api-stable` is TeamSamoyed's SDK (game 0.6.5, ABI level 10: 0.6.4's plus the frozen abi_level_10.txt; game 0.7.0 ships it unchanged), unmodified.
