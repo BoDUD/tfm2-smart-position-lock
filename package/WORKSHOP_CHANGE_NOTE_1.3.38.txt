@@ -1,0 +1,4 @@
+1.3.38
+- 内置位置增加云顶之弈英雄史密奇（tft Mod，打野）。
+
+1.3.38: Smeech (the tft pack, jungle) built in.
