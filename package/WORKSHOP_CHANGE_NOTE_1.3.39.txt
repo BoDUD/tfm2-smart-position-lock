@@ -1,0 +1,4 @@
+1.3.39
+- 内置位置增加云顶之弈英雄塞薇卡（tft Mod，上路）。
+
+1.3.39: Sevika (the tft pack, top) built in.
