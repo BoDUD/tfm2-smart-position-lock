@@ -1,0 +1,4 @@
+1.3.40
+- 内置位置增加云顶之弈英雄斯特卜（tft Mod，辅助）。
+
+1.3.40: Steb (the tft pack, support) built in.
