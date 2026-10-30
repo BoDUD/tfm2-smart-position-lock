@@ -1,0 +1,4 @@
+1.3.44
+- 内置位置增加云顶之弈英雄石傲玉（tft Mod，上路）。
+
+1.3.44: Shi Oh Yu (the tft pack, top) built in.
