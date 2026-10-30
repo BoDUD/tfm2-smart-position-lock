@@ -1,0 +1,4 @@
+1.3.45
+- 内置位置增加云顶之弈英雄赛芬（tft Mod，打野）。
+
+1.3.45: Sy'fen (the tft pack, jungle) built in.
