@@ -1,0 +1,4 @@
+1.3.42
+- 内置位置增加云顶之弈英雄艾达丝（tft Mod，辅助）。
+
+1.3.42: Idas (the tft pack, support) built in.
