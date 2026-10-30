@@ -1,0 +1,4 @@
+1.3.46
+- 内置位置增加云顶之弈英雄索姆（tft Mod，中路）。
+
+1.3.46: Sohm (the tft pack, mid) built in.
