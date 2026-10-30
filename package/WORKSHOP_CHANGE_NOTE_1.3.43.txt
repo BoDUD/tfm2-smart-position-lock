@@ -1,0 +1,4 @@
+1.3.43
+- 内置位置增加云顶之弈英雄迭嘉（tft Mod，下路）。
+
+1.3.43: Daeja (the tft pack, bottom) built in.
