@@ -21,7 +21,7 @@
 [h2]Which positions can a champion play? (first found wins)[/h2]
 [olist]
 [*][b]Your own list[/b] (F7 panel or settings.ini, see below) - wins over everything.
-[*][b]League of Legends Heroes champions:[/b] the official main positions of all 173 are built in (and from its tft pack Powder, Norra, Alune, Silco, Ao Shin, Nomsy and Sohm: Mid, Maddie and Daeja: Bot, Loris, Steb and Idas: Support, Kobuko, Scar, Renni, Sevika, Shi Oh Yu and Terra: Top, Vander, Violet, Krug, Smeech, Sy'fen, Zippy, Sentinel and Brambleback: Jungle); the first listed is the one it plays when it has a choice. Nothing to copy.
+[*][b]League of Legends Heroes champions:[/b] the official main positions of all 173 are built in (and from its tft pack Powder, Norra, Alune, Silco, Ao Shin, Nomsy and Sohm: Mid, Maddie, Daeja and Mama Beak: Bot, Loris, Steb and Idas: Support, Kobuko, Scar, Renni, Sevika, Shi Oh Yu and Terra: Top, Vander, Violet, Krug, Smeech, Sy'fen, Zippy, Sentinel and Brambleback: Jungle); the first listed is the one it plays when it has a choice. Nothing to copy.
 [*][b]Every other champion (base game champions, champions from any other mod):[/b]
 [list]
 [*]the two main positions the game shows on its ban/pick card (the game's statistics: the two positions it has seen the champion played in most - not something a champion mod sets);
