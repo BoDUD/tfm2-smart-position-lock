@@ -1,0 +1,4 @@
+1.3.52
+- 内置位置增加云顶之弈英雄远古巨龙（tft Mod，上路）。
+
+1.3.52: Elder Dragon (the tft pack, top) built in.
