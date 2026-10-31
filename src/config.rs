@@ -388,9 +388,9 @@ mod tests {
     fn the_league_preset_reads_cleanly() {
         let (cfg, warnings) = parse(include_str!("../presets/league_positions.ini"));
         assert!(warnings.is_empty(), "{warnings:?}");
-        assert_eq!(cfg.overrides.len(), 197);
-        // the League pack's champions, and the tft pack's Powder, Norra, Alune, Silco, Maddie, Loris, Kobuko, Vander, Violet, Krug, Ao Shin, Scar, Renni, Smeech, Sevika, Steb, Nomsy, Idas, Daeja, Shi Oh Yu, Sy'fen, Sohm, Terra and Zippy shipped with it
-        assert!(cfg.overrides.keys().all(|c| c.starts_with("league_") || c == "tft_powder" || c == "tft_norra" || c == "tft_alune" || c == "tft_silco" || c == "tft_maddie" || c == "tft_loris" || c == "tft_kobuko" || c == "tft_vander" || c == "tft_violet" || c == "tft_krug" || c == "tft_aoshin" || c == "tft_scar" || c == "tft_renni" || c == "tft_smeech" || c == "tft_sevika" || c == "tft_steb" || c == "tft_nomsy" || c == "tft_idas" || c == "tft_daeja" || c == "tft_shiohyu" || c == "tft_syfen" || c == "tft_sohm" || c == "tft_terra" || c == "tft_zippy"));
+        assert_eq!(cfg.overrides.len(), 198);
+        // the League pack's champions, and the tft pack's Powder, Norra, Alune, Silco, Maddie, Loris, Kobuko, Vander, Violet, Krug, Ao Shin, Scar, Renni, Smeech, Sevika, Steb, Nomsy, Idas, Daeja, Shi Oh Yu, Sy'fen, Sohm, Terra, Zippy and Sentinel shipped with it
+        assert!(cfg.overrides.keys().all(|c| c.starts_with("league_") || c == "tft_powder" || c == "tft_norra" || c == "tft_alune" || c == "tft_silco" || c == "tft_maddie" || c == "tft_loris" || c == "tft_kobuko" || c == "tft_vander" || c == "tft_violet" || c == "tft_krug" || c == "tft_aoshin" || c == "tft_scar" || c == "tft_renni" || c == "tft_smeech" || c == "tft_sevika" || c == "tft_steb" || c == "tft_nomsy" || c == "tft_idas" || c == "tft_daeja" || c == "tft_shiohyu" || c == "tft_syfen" || c == "tft_sohm" || c == "tft_terra" || c == "tft_zippy" || c == "tft_sentinel"));
         assert_eq!(cfg.override_of("tft_powder"), Some([false, false, true, false, false]));
         assert_eq!(cfg.override_of("tft_norra"), Some([false, false, true, false, false]));
         assert_eq!(cfg.override_of("tft_alune"), Some([false, false, true, false, false]));
@@ -415,12 +415,13 @@ mod tests {
         assert_eq!(cfg.override_of("tft_sohm"), Some([false, false, true, false, false]));
         assert_eq!(cfg.override_of("tft_terra"), Some([true, false, false, false, false]));
         assert_eq!(cfg.override_of("tft_zippy"), Some([false, true, false, false, false]));
+        assert_eq!(cfg.override_of("tft_sentinel"), Some([false, true, false, false, false]));
         assert_eq!(cfg.override_of("league_ahri"), Some([false, false, true, false, false]));
         assert_eq!(cfg.override_of("league_vayne"), Some([true, false, false, true, false]));
         assert_eq!(cfg.override_of("league_bard"), Some([false, false, false, false, true]));
         // the first position listed is the main one
         assert_eq!((cfg.main_of("league_vayne"), cfg.main_of("league_senna")), (Some(3), Some(4)));
-        assert_eq!(cfg.mains.len(), 197);
+        assert_eq!(cfg.mains.len(), 198);
         // every position has plenty of champions, and plenty that play nothing else
         for lane in 0..5 {
             assert!(cfg.overrides.values().filter(|l| l[lane]).count() >= 20, "position {lane}");
