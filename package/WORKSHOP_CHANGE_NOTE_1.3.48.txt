@@ -1,0 +1,4 @@
+1.3.48
+- 内置位置增加云顶之弈英雄呲呲（tft Mod，打野）。
+
+1.3.48: Zippy (the tft pack, jungle) built in.
