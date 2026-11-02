@@ -535,7 +535,7 @@ pub(crate) mod tests {
         let _serial = crate::tests::serial();
         clear();
         let cfg = Config::default();
-        assert_eq!(preset_count(), 209, "every League champion and the tft pack's Powder, Norra, Alune, Silco, Maddie, Loris, Kobuko, Vander, Violet, Krug, Ao Shin, Scar, Renni, Smeech, Sevika, Steb, Nomsy, Idas, Daeja, Shi Oh Yu, Sy'fen, Sohm, Terra, Zippy, Sentinel, Brambleback, Mama Beak, Elder Dragon, Meepsie, Murkwolf, Scuttle Crab, Gromp, Pebbles, Brock, Cinderling and Rift Herald");
+        assert_eq!(preset_count(), 210, "every League champion and the tft pack's Powder, Norra, Alune, Silco, Maddie, Loris, Kobuko, Vander, Violet, Krug, Ao Shin, Scar, Renni, Smeech, Sevika, Steb, Nomsy, Idas, Daeja, Shi Oh Yu, Sy'fen, Sohm, Terra, Zippy, Sentinel, Brambleback, Mama Beak, Elder Dragon, Meepsie, Murkwolf, Scuttle Crab, Gromp, Pebbles, Brock, Cinderling, Rift Herald and T-Hex");
         // the card said top/jungle (nothing seen yet): the built-in list wins
         learn("league_bard", TOP_JG);
         assert_eq!(allowed("league_bard", &cfg, None), SUP);

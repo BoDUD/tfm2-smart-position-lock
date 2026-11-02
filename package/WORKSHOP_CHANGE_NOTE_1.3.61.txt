@@ -1,0 +1,4 @@
+1.3.61
+- 内置位置增加云顶之弈英雄海克斯霸龙（tft Mod，上路）。
+
+1.3.61: T-Hex (the tft pack, top lane) built in.
