@@ -1,0 +1,4 @@
+1.3.60
+- 内置位置增加云顶之弈英雄峡谷先锋（tft Mod，上路）。
+
+1.3.60: Rift Herald (the tft pack, top lane) built in.
