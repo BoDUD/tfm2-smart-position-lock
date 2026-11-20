@@ -81,7 +81,7 @@ dependencies = [
 
 [[package]]
 name = "smart_position_lock"
-version = "1.3.64"
+version = "1.3.65"
 dependencies = [
  "mod-api-stable",
  "serde",
