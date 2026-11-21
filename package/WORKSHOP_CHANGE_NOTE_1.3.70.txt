@@ -1,0 +1,4 @@
+1.3.70
+- 内置位置增加终末的女武神英雄赫拉克勒斯（打野）和开膛手杰克（下路）（ragnarok Mod）。
+
+1.3.70: Heracles (jungle) and Jack the Ripper (bot) of the Record of Ragnarok Heroes pack built in.
