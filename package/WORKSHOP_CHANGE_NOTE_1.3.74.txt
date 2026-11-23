@@ -1,0 +1,4 @@
+1.3.74
+- 内置位置增加终末的女武神英雄别西卜（中路）和尼古拉·特斯拉（打野）（ragnarok Mod）。
+
+1.3.74: Beelzebub (mid) and Nikola Tesla (jungle) of the Record of Ragnarok Heroes pack built in.
