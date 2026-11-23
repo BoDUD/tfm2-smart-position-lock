@@ -1,0 +1,4 @@
+1.3.75
+- 内置位置增加 Dota 英雄包（dota Mod）的全部 26 个英雄，按 Dota 的位置：1 号位下路、2 号位中路、3 号位上路、4 号位打野、5 号位辅助。
+
+1.3.75: all 26 heroes of the Dota Heroes pack (dota mod) built in, by their Dota positions: 1 = Bot, 2 = Mid, 3 = Top, 4 = Jungle, 5 = Support.
