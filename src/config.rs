@@ -388,9 +388,9 @@ mod tests {
     fn the_league_preset_reads_cleanly() {
         let (cfg, warnings) = parse(include_str!("../presets/league_positions.ini"));
         assert!(warnings.is_empty(), "{warnings:?}");
-        assert_eq!(cfg.overrides.len(), 226);
-        // the League pack's champions, and the tft pack's Powder, Norra, Alune, Silco, Maddie, Loris, Kobuko, Vander, Violet, Krug, Ao Shin, Scar, Renni, Smeech, Sevika, Steb, Nomsy, Idas, Daeja, Shi Oh Yu, Sy'fen, Sohm, Terra, Zippy, Sentinel, Brambleback, Mama Beak, Elder Dragon, Meepsie, Murkwolf, Scuttle Crab, Gromp, Pebbles, Brock, Cinderling, Rift Herald, T-Hex, Baron Nashor and the Mighty Mech, and the ragnarok pack's Lu Bu, Thor, Zeus, Adam, Poseidon, Sasaki Kojiro, Heracles, Jack the Ripper, Raiden Tameemon, Shiva, Buddha, Zerofuku, Hades and Qin Shi Huang shipped with it
-        assert!(cfg.overrides.keys().all(|c| c.starts_with("league_") || c == "tft_powder" || c == "tft_norra" || c == "tft_alune" || c == "tft_silco" || c == "tft_maddie" || c == "tft_loris" || c == "tft_kobuko" || c == "tft_vander" || c == "tft_violet" || c == "tft_krug" || c == "tft_aoshin" || c == "tft_scar" || c == "tft_renni" || c == "tft_smeech" || c == "tft_sevika" || c == "tft_steb" || c == "tft_nomsy" || c == "tft_idas" || c == "tft_daeja" || c == "tft_shiohyu" || c == "tft_syfen" || c == "tft_sohm" || c == "tft_terra" || c == "tft_zippy" || c == "tft_sentinel" || c == "tft_brambleback" || c == "tft_raptor" || c == "tft_elderdragon" || c == "tft_meepsie" || c == "tft_murkwolf" || c == "tft_scuttlecrab" || c == "tft_gromp" || c == "tft_sentry" || c == "tft_brock" || c == "tft_cinderling" || c == "tft_riftherald" || c == "tft_thex" || c == "tft_baronnashor" || c == "tft_mightymech" || c == "ragnarok_lubu" || c == "ragnarok_thor" || c == "ragnarok_zeus" || c == "ragnarok_adam" || c == "ragnarok_poseidon" || c == "ragnarok_kojiro" || c == "ragnarok_heracles" || c == "ragnarok_jack" || c == "ragnarok_raiden" || c == "ragnarok_shiva" || c == "ragnarok_buddha" || c == "ragnarok_zerofuku" || c == "ragnarok_hades" || c == "ragnarok_qin"));
+        assert_eq!(cfg.overrides.len(), 230);
+        // the League pack's champions, and the tft pack's Powder, Norra, Alune, Silco, Maddie, Loris, Kobuko, Vander, Violet, Krug, Ao Shin, Scar, Renni, Smeech, Sevika, Steb, Nomsy, Idas, Daeja, Shi Oh Yu, Sy'fen, Sohm, Terra, Zippy, Sentinel, Brambleback, Mama Beak, Elder Dragon, Meepsie, Murkwolf, Scuttle Crab, Gromp, Pebbles, Brock, Cinderling, Rift Herald, T-Hex, Baron Nashor and the Mighty Mech, and the ragnarok pack's Lu Bu, Thor, Zeus, Adam, Poseidon, Sasaki Kojiro, Heracles, Jack the Ripper, Raiden Tameemon, Shiva, Buddha, Zerofuku, Hades, Qin Shi Huang, Beelzebub, Nikola Tesla, Leonidas and Apollo shipped with it
+        assert!(cfg.overrides.keys().all(|c| c.starts_with("league_") || c == "tft_powder" || c == "tft_norra" || c == "tft_alune" || c == "tft_silco" || c == "tft_maddie" || c == "tft_loris" || c == "tft_kobuko" || c == "tft_vander" || c == "tft_violet" || c == "tft_krug" || c == "tft_aoshin" || c == "tft_scar" || c == "tft_renni" || c == "tft_smeech" || c == "tft_sevika" || c == "tft_steb" || c == "tft_nomsy" || c == "tft_idas" || c == "tft_daeja" || c == "tft_shiohyu" || c == "tft_syfen" || c == "tft_sohm" || c == "tft_terra" || c == "tft_zippy" || c == "tft_sentinel" || c == "tft_brambleback" || c == "tft_raptor" || c == "tft_elderdragon" || c == "tft_meepsie" || c == "tft_murkwolf" || c == "tft_scuttlecrab" || c == "tft_gromp" || c == "tft_sentry" || c == "tft_brock" || c == "tft_cinderling" || c == "tft_riftherald" || c == "tft_thex" || c == "tft_baronnashor" || c == "tft_mightymech" || c == "ragnarok_lubu" || c == "ragnarok_thor" || c == "ragnarok_zeus" || c == "ragnarok_adam" || c == "ragnarok_poseidon" || c == "ragnarok_kojiro" || c == "ragnarok_heracles" || c == "ragnarok_jack" || c == "ragnarok_raiden" || c == "ragnarok_shiva" || c == "ragnarok_buddha" || c == "ragnarok_zerofuku" || c == "ragnarok_hades" || c == "ragnarok_qin" || c == "ragnarok_beelzebub" || c == "ragnarok_tesla" || c == "ragnarok_leonidas" || c == "ragnarok_apollo"));
         assert_eq!(cfg.override_of("tft_powder"), Some([false, false, true, false, false]));
         assert_eq!(cfg.override_of("tft_norra"), Some([false, false, true, false, false]));
         assert_eq!(cfg.override_of("tft_alune"), Some([false, false, true, false, false]));
@@ -444,12 +444,16 @@ mod tests {
         assert_eq!(cfg.override_of("ragnarok_zerofuku"), Some([true, false, false, false, false]));
         assert_eq!(cfg.override_of("ragnarok_hades"), Some([false, true, false, false, false]));
         assert_eq!(cfg.override_of("ragnarok_qin"), Some([false, false, false, false, true]));
+        assert_eq!(cfg.override_of("ragnarok_beelzebub"), Some([false, false, true, false, false]));
+        assert_eq!(cfg.override_of("ragnarok_tesla"), Some([false, true, false, false, false]));
+        assert_eq!(cfg.override_of("ragnarok_leonidas"), Some([false, false, false, false, true]));
+        assert_eq!(cfg.override_of("ragnarok_apollo"), Some([false, false, true, false, false]));
         assert_eq!(cfg.override_of("league_ahri"), Some([false, false, true, false, false]));
         assert_eq!(cfg.override_of("league_vayne"), Some([true, false, false, true, false]));
         assert_eq!(cfg.override_of("league_bard"), Some([false, false, false, false, true]));
         // the first position listed is the main one
         assert_eq!((cfg.main_of("league_vayne"), cfg.main_of("league_senna")), (Some(3), Some(4)));
-        assert_eq!(cfg.mains.len(), 226);
+        assert_eq!(cfg.mains.len(), 230);
         // every position has plenty of champions, and plenty that play nothing else
         for lane in 0..5 {
             assert!(cfg.overrides.values().filter(|l| l[lane]).count() >= 20, "position {lane}");
