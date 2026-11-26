@@ -1,0 +1,4 @@
+1.3.76
+- 内置位置增加终末的女武神英雄包的冲田总司（打野）、须佐之男（上路）、西蒙·海耶（下路）、洛基（中路）。
+
+1.3.76: the Record of Ragnarok Heroes pack's Okita Soji (Jungle), Susanoo (Top), Simo Häyhä (Bot) and Loki (Mid) built in.
