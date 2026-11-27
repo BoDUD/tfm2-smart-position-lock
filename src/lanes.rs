@@ -535,7 +535,7 @@ pub(crate) mod tests {
         let _serial = crate::tests::serial();
         clear();
         let cfg = Config::default();
-        assert_eq!(preset_count(), 260, "every League champion and the tft pack's Powder, Norra, Alune, Silco, Maddie, Loris, Kobuko, Vander, Violet, Krug, Ao Shin, Scar, Renni, Smeech, Sevika, Steb, Nomsy, Idas, Daeja, Shi Oh Yu, Sy'fen, Sohm, Terra, Zippy, Sentinel, Brambleback, Mama Beak, Elder Dragon, Meepsie, Murkwolf, Scuttle Crab, Gromp, Pebbles, Brock, Cinderling, Rift Herald, T-Hex, Baron Nashor and the Mighty Mech, and the ragnarok pack's Lu Bu, Thor, Zeus, Adam, Poseidon, Sasaki Kojiro, Heracles, Jack the Ripper, Raiden Tameemon, Shiva, Buddha, Zerofuku, Hades, Qin Shi Huang, Beelzebub, Nikola Tesla, Leonidas, Apollo, Okita Soji, Susanoo, Simo Häyhä and Loki, and the dota pack's 26 heroes");
+        assert_eq!(preset_count(), 262, "every League champion and the tft pack's Powder, Norra, Alune, Silco, Maddie, Loris, Kobuko, Vander, Violet, Krug, Ao Shin, Scar, Renni, Smeech, Sevika, Steb, Nomsy, Idas, Daeja, Shi Oh Yu, Sy'fen, Sohm, Terra, Zippy, Sentinel, Brambleback, Mama Beak, Elder Dragon, Meepsie, Murkwolf, Scuttle Crab, Gromp, Pebbles, Brock, Cinderling, Rift Herald, T-Hex, Baron Nashor and the Mighty Mech, and the ragnarok pack's Lu Bu, Thor, Zeus, Adam, Poseidon, Sasaki Kojiro, Heracles, Jack the Ripper, Raiden Tameemon, Shiva, Buddha, Zerofuku, Hades, Qin Shi Huang, Beelzebub, Nikola Tesla, Leonidas, Apollo, Okita Soji, Susanoo, Simo Häyhä, Loki, Sakata Kintoki and Odin, and the dota pack's 26 heroes");
         // the card said top/jungle (nothing seen yet): the built-in list wins
         learn("league_bard", TOP_JG);
         assert_eq!(allowed("league_bard", &cfg, None), SUP);
