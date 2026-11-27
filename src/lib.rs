@@ -30,6 +30,7 @@ pub mod lanes;
 pub mod panel;
 mod paths;
 pub mod screen;
+pub mod seated;
 pub mod ui;
 
 use mod_api_stable::{declare_stable_mod, LogLevel, StableHost, StableMod};

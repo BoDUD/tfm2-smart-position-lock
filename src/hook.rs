@@ -63,6 +63,8 @@ static PLAYER_TEAM: AtomicUsize = AtomicUsize::new(usize::MAX);
 pub fn set_live(live: bool) {
     if LIVE.swap(live, Ordering::Relaxed) != live && live {
         LIVE_FIRST.store(false, Ordering::Relaxed);
+        // 新的一场：上一场的分路不要了（1.3.78）
+        crate::seated::clear();
     }
 }
 
@@ -261,6 +263,14 @@ impl StableDraftHook for LockHook {
         if !ctx.is_explore() {
             log_seat(&format!("{team}: {}", describe_plan(&cfg, &plan, &picks, &slots, &lineup)));
             check_lineup_order(&team, &lineup, &slots);
+            // 屏幕上这一局：排法写进 seated.json，Patch Meta AI 照着把选人格下面的标签对上格子里的英雄（1.3.78）
+            if LIVE.load(Ordering::Relaxed) {
+                let order = match &plan {
+                    Plan::Seat(seating) => Some(seating.order.clone()),
+                    Plan::Keep(_) => None,
+                };
+                crate::seated::record(crate::seated::Entry { team: ctx.ally_team(), picks: names.clone(), slots: slots.clone(), order });
+            }
         }
         match plan {
             Plan::Seat(seating) => Some(seating.order),
