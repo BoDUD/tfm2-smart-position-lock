@@ -217,7 +217,8 @@ impl History {
 /// that the lock held to the end. One `[result]` line in `diag.log`.
 fn check_match(id: usize, sides: &[Option<Value>; 2]) {
     let cfg = crate::config::get();
-    if !cfg.enabled {
+    // 嚎哭深渊的比赛不按位置打，不核对（1.3.79）
+    if !cfg.enabled || crate::compat::aram() {
         return;
     }
     let played = lanes::played();

@@ -225,6 +225,10 @@ impl StableDraftHook for LockHook {
         if !cfg.enabled || !cfg.ai {
             return StableDraftDecision::Pass;
         }
+        // 嚎哭深渊没有分路：谁都能选（1.3.79）
+        if crate::compat::aram() {
+            return StableDraftDecision::Pass;
+        }
         let key = decision_key(ctx, &cfg);
         CURRENT.with(|cell| {
             let mut d = cell.borrow_mut();
@@ -247,6 +251,10 @@ impl StableDraftHook for LockHook {
         let cfg = config::get();
         if !cfg.enabled || !cfg.ai {
             diag::log_once("seat-off", "[seat] the lock or its AI switch is off: the game seats AI teams itself");
+            return None;
+        }
+        // 嚎哭深渊没有分路：交给游戏，也不写 seated.json（打开选人界面时已经清空，电竞大脑读不到上一场的）（1.3.79）
+        if crate::compat::aram() {
             return None;
         }
         athletes::fielded(ctx.ally_athletes());
@@ -788,6 +796,33 @@ mod tests {
         assert_eq!(LockHook.score_pick(&ctx, 2, 1.0), StableDraftDecision::Replace(LOCKED_SCORE));
         assert_eq!(LockHook.score_pick(&ctx, 3, 1.0), StableDraftDecision::Pass);
         assert!(log().contains("team so far: league_ahri, league_garen (open: Jungle/Bottom/Support)"), "{}", log());
+        lanes::clear();
+    }
+
+    #[test]
+    fn the_howling_abyss_has_no_positions() {
+        let _serial = crate::tests::serial();
+        crate::tests::temp_dir();
+        lanes::clear();
+        config::set(config::Config::default());
+        let abyss = crate::tests::HowlingAbyss::on();
+        // 盖伦占了上路，德莱厄斯照样能选
+        let table = ["league_ahri", "league_garen", "league_darius", "league_viego", "league_syndra"];
+        let draft = FakeDraft::new(DraftPhaseV1::Pick, &table, &["league_ahri", "league_garen"], &table[2..], &[]);
+        assert_eq!(LockHook.score_pick(&draft.ctx(), 2, 1.0), StableDraftDecision::Pass);
+        // 分路交给游戏，屏幕上这一局也不写 seated.json
+        set_live(false);
+        set_live(true);
+        let table = ["league_seraphine", "league_garen", "league_annie", "league_viego", "league_varus"];
+        let draft = FakeDraft::new(DraftPhaseV1::Position, &table, &table, &[], &LANES);
+        assert_eq!(LockHook.decide_positions(&draft.ctx()), None);
+        let seated = || std::fs::read_to_string(crate::paths::mod_dir().join(crate::seated::FILE)).unwrap_or_default();
+        assert_eq!(seated(), r#"{"seated":[]}"#);
+        // 换回普通生涯：照旧锁、照旧排
+        drop(abyss);
+        assert_eq!(LockHook.decide_positions(&draft.ctx()), Some(vec![1, 3, 2, 4, 0]));
+        assert!(seated().contains("league_seraphine"), "{}", seated());
+        set_live(false);
         lanes::clear();
     }
 }

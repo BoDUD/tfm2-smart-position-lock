@@ -1,0 +1,4 @@
+1.3.79
+- 打开的是海克斯大乱斗的嚎哭深渊生涯（五对五一条路，没有分路）时不再锁位置：AI 和你自己选人都不锁，AI 队的分路交给游戏，也不写 seated.json。普通生涯照旧。
+
+1.3.79: in a Howling Abyss career (league_hextech's ARAM: one lane, no positions) the lock stands aside - no pick is held, no card is locked, the game seats AI teams itself and no seated.json is written. Other careers are unchanged.
