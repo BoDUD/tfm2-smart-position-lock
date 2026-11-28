@@ -388,11 +388,12 @@ mod tests {
     fn the_league_preset_reads_cleanly() {
         let (cfg, warnings) = parse(include_str!("../presets/league_positions.ini"));
         assert!(warnings.is_empty(), "{warnings:?}");
-        assert_eq!(cfg.overrides.len(), 262);
+        assert_eq!(cfg.overrides.len(), 272);
         // the League pack's champions, and the tft pack's Powder, Norra, Alune, Silco, Maddie, Loris, Kobuko, Vander, Violet, Krug, Ao Shin, Scar, Renni, Smeech, Sevika, Steb, Nomsy, Idas, Daeja, Shi Oh Yu, Sy'fen, Sohm, Terra, Zippy, Sentinel, Brambleback, Mama Beak, Elder Dragon, Meepsie, Murkwolf, Scuttle Crab, Gromp, Pebbles, Brock, Cinderling, Rift Herald, T-Hex, Baron Nashor and the Mighty Mech, and the ragnarok pack's Lu Bu, Thor, Zeus, Adam, Poseidon, Sasaki Kojiro, Heracles, Jack the Ripper, Raiden Tameemon, Shiva, Buddha, Zerofuku, Hades, Qin Shi Huang, Beelzebub, Nikola Tesla, Leonidas, Apollo, Okita Soji, Susanoo, Simo Häyhä, Loki, Sakata Kintoki and Odin shipped with it
         // dota Mod 的 26 个英雄（id 没有前缀）
         const DOTA: [&str; 26] = ["lich", "ancient_apparition", "silencer", "centaur", "dawnbreaker", "doom", "tidehunter", "death_prophet", "huskar", "kunkka", "lina", "necrophos", "nevermore", "windranger", "zeus", "drow_ranger", "faceless_void", "juggernaut", "luna", "phantom_assassin", "phantom_lancer", "slark", "sven", "terrorblade", "ursa", "pudge"];
-        assert!(cfg.overrides.keys().all(|c| c.starts_with("league_") || c == "tft_powder" || c == "tft_norra" || c == "tft_alune" || c == "tft_silco" || c == "tft_maddie" || c == "tft_loris" || c == "tft_kobuko" || c == "tft_vander" || c == "tft_violet" || c == "tft_krug" || c == "tft_aoshin" || c == "tft_scar" || c == "tft_renni" || c == "tft_smeech" || c == "tft_sevika" || c == "tft_steb" || c == "tft_nomsy" || c == "tft_idas" || c == "tft_daeja" || c == "tft_shiohyu" || c == "tft_syfen" || c == "tft_sohm" || c == "tft_terra" || c == "tft_zippy" || c == "tft_sentinel" || c == "tft_brambleback" || c == "tft_raptor" || c == "tft_elderdragon" || c == "tft_meepsie" || c == "tft_murkwolf" || c == "tft_scuttlecrab" || c == "tft_gromp" || c == "tft_sentry" || c == "tft_brock" || c == "tft_cinderling" || c == "tft_riftherald" || c == "tft_thex" || c == "tft_baronnashor" || c == "tft_mightymech" || c == "ragnarok_lubu" || c == "ragnarok_thor" || c == "ragnarok_zeus" || c == "ragnarok_adam" || c == "ragnarok_poseidon" || c == "ragnarok_kojiro" || c == "ragnarok_heracles" || c == "ragnarok_jack" || c == "ragnarok_raiden" || c == "ragnarok_shiva" || c == "ragnarok_buddha" || c == "ragnarok_zerofuku" || c == "ragnarok_hades" || c == "ragnarok_qin" || c == "ragnarok_beelzebub" || c == "ragnarok_tesla" || c == "ragnarok_leonidas" || c == "ragnarok_apollo" || c == "ragnarok_okita" || c == "ragnarok_susanoo" || c == "ragnarok_simo" || c == "ragnarok_loki" || c == "ragnarok_kintoki" || c == "ragnarok_odin" || DOTA.contains(&c.as_str())));
+        const HOK: [&str; 10] = ["nl_dasiming", "nl_xiahoudun", "nl_ying", "nl_yunying", "nl_waner", "nl_xiaoqiao", "nl_galo", "nl_yuji", "nl_siyuan", "nl_yao"];
+        assert!(cfg.overrides.keys().all(|c| c.starts_with("league_") || c == "tft_powder" || c == "tft_norra" || c == "tft_alune" || c == "tft_silco" || c == "tft_maddie" || c == "tft_loris" || c == "tft_kobuko" || c == "tft_vander" || c == "tft_violet" || c == "tft_krug" || c == "tft_aoshin" || c == "tft_scar" || c == "tft_renni" || c == "tft_smeech" || c == "tft_sevika" || c == "tft_steb" || c == "tft_nomsy" || c == "tft_idas" || c == "tft_daeja" || c == "tft_shiohyu" || c == "tft_syfen" || c == "tft_sohm" || c == "tft_terra" || c == "tft_zippy" || c == "tft_sentinel" || c == "tft_brambleback" || c == "tft_raptor" || c == "tft_elderdragon" || c == "tft_meepsie" || c == "tft_murkwolf" || c == "tft_scuttlecrab" || c == "tft_gromp" || c == "tft_sentry" || c == "tft_brock" || c == "tft_cinderling" || c == "tft_riftherald" || c == "tft_thex" || c == "tft_baronnashor" || c == "tft_mightymech" || c == "ragnarok_lubu" || c == "ragnarok_thor" || c == "ragnarok_zeus" || c == "ragnarok_adam" || c == "ragnarok_poseidon" || c == "ragnarok_kojiro" || c == "ragnarok_heracles" || c == "ragnarok_jack" || c == "ragnarok_raiden" || c == "ragnarok_shiva" || c == "ragnarok_buddha" || c == "ragnarok_zerofuku" || c == "ragnarok_hades" || c == "ragnarok_qin" || c == "ragnarok_beelzebub" || c == "ragnarok_tesla" || c == "ragnarok_leonidas" || c == "ragnarok_apollo" || c == "ragnarok_okita" || c == "ragnarok_susanoo" || c == "ragnarok_simo" || c == "ragnarok_loki" || c == "ragnarok_kintoki" || c == "ragnarok_odin" || DOTA.contains(&c.as_str()) || HOK.contains(&c.as_str())));
         assert_eq!(cfg.override_of("tft_powder"), Some([false, false, true, false, false]));
         assert_eq!(cfg.override_of("tft_norra"), Some([false, false, true, false, false]));
         assert_eq!(cfg.override_of("tft_alune"), Some([false, false, true, false, false]));
@@ -460,6 +461,12 @@ mod tests {
         assert_eq!(cfg.override_of("juggernaut"), Some([false, false, false, true, false]));
         assert_eq!(cfg.override_of("zeus"), Some([false, false, true, false, true]));
         assert_eq!(cfg.override_of("pudge"), Some([false, true, false, false, true]));
+        assert_eq!(cfg.override_of("nl_dasiming"), Some([true, true, false, false, false]));
+        assert_eq!(cfg.override_of("nl_xiahoudun"), Some([true, false, false, false, true]));
+        assert_eq!(cfg.override_of("nl_waner"), Some([false, true, true, false, false]));
+        assert_eq!(cfg.override_of("nl_galo"), Some([false, false, false, true, false]));
+        assert_eq!(cfg.override_of("nl_yao"), Some([false, false, false, false, true]));
+        assert_eq!((cfg.main_of("nl_yunying"), cfg.main_of("nl_xiahoudun"), cfg.main_of("nl_waner")), (Some(1), Some(0), Some(2)));
         assert_eq!(cfg.override_of("tidehunter"), Some([true, false, false, false, false]));
         assert_eq!((cfg.main_of("pudge"), cfg.main_of("lich"), cfg.main_of("ursa")), (Some(1), Some(4), Some(3)));
         assert_eq!(cfg.override_of("league_ahri"), Some([false, false, true, false, false]));
@@ -467,7 +474,7 @@ mod tests {
         assert_eq!(cfg.override_of("league_bard"), Some([false, false, false, false, true]));
         // the first position listed is the main one
         assert_eq!((cfg.main_of("league_vayne"), cfg.main_of("league_senna")), (Some(3), Some(4)));
-        assert_eq!(cfg.mains.len(), 262);
+        assert_eq!(cfg.mains.len(), 272);
         // every position has plenty of champions, and plenty that play nothing else
         for lane in 0..5 {
             assert!(cfg.overrides.values().filter(|l| l[lane]).count() >= 20, "position {lane}");

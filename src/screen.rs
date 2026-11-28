@@ -125,7 +125,8 @@ impl Screen {
                 lanes::known()
             ));
         }
-        let locking = cfg.enabled && cfg.player && pick_phase;
+        // 嚎哭深渊没有分路：一张卡都不锁，已经盖上的也收起来（1.3.79）
+        let locking = cfg.enabled && cfg.player && pick_phase && !crate::compat::aram();
         let ruled_out: HashSet<&str> = match side {
             Some(side) if locking => {
                 let team: Vec<&str> =
@@ -184,7 +185,8 @@ impl Screen {
     /// Whether each side's picks can still be seated one per position - for the AI's picks the
     /// proof that the draft hook holds the lock. Written to `diag.log` whenever a side picks.
     fn check(&mut self, cfg: &Config, cards: &[Card]) {
-        if !cfg.enabled {
+        // 嚎哭深渊里本来就不锁，不记「锁没守住」
+        if !cfg.enabled || crate::compat::aram() {
             return;
         }
         let played = lanes::played();
@@ -432,6 +434,32 @@ pub(crate) mod tests {
         ui.set_visible(&format!("{GRID}.a.red"), true);
         s.tick(&mut ui, 0, "rivals", &known, &cfg);
         assert!(locked(&ui).is_empty());
+        lanes::clear();
+    }
+
+    #[test]
+    fn nothing_is_locked_in_the_howling_abyss() {
+        let _serial = crate::tests::serial();
+        crate::tests::temp_dir();
+        lanes::clear();
+        let cfg = Config { history: false, ..Config::default() };
+        let mut ui = screen(&[("a", &["top"]), ("b", &["top"]), ("c", &["mid"])]);
+        let mut s = Screen::default();
+        ui.set_visible(&format!("{GRID}.a.blue"), true);
+        s.tick(&mut ui, 0, "Mods FC", &known, &cfg);
+        assert_eq!(locked(&ui), ["b"]);
+        // 嚎哭深渊：锁收起来；两个上路也不记「锁没守住」
+        let abyss = crate::tests::HowlingAbyss::on();
+        s.tick(&mut ui, 10, "Mods FC", &known, &cfg);
+        assert!(locked(&ui).is_empty());
+        ui.set_visible(&format!("{GRID}.b.blue"), true);
+        s.tick(&mut ui, 20, "Mods FC", &known, &cfg);
+        let log = std::fs::read_to_string(crate::paths::mod_dir().join(crate::diag::LOG_FILE)).unwrap();
+        assert!(!log.contains("DO NOT fit"), "{log}");
+        drop(abyss);
+        ui.set_visible(&format!("{GRID}.b.blue"), false);
+        s.tick(&mut ui, 30, "Mods FC", &known, &cfg);
+        assert_eq!(locked(&ui), ["b"], "普通生涯照旧锁");
         lanes::clear();
     }
 }

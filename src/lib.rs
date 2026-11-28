@@ -15,6 +15,7 @@
 //!   otherwise seat them by its own judgement ([`hook`]); of equally good seatings, the one whose
 //!   players play their champions best ([`athletes`]); the player's own picks are held by a lock
 //!   over each card that does not fit, which takes the click ([`screen`]).
+//! - 嚎哭深渊生涯（海克斯大乱斗，一条路没有分路）里这些都不做：不锁选人、不排分路（[`compat::aram`]，1.3.79）。
 //!
 //! Nothing in a callback may panic: every lock tolerates poisoning and lists are never indexed
 //! with positions from an earlier call.
@@ -92,5 +93,22 @@ pub(crate) mod tests {
         let _ = std::fs::create_dir_all(&dir);
         std::env::set_var(crate::paths::DIR_ENV, &dir);
         crate::diag::open(&dir);
+    }
+
+    /// 装作打开的是嚎哭深渊生涯（海克斯大乱斗写的环境变量）；出了作用域就去掉，`compat::aram` 记的上一次也跟着对齐
+    pub struct HowlingAbyss;
+
+    impl HowlingAbyss {
+        pub fn on() -> Self {
+            std::env::set_var(crate::compat::HEXTECH_ARAM_ENV, "1");
+            Self
+        }
+    }
+
+    impl Drop for HowlingAbyss {
+        fn drop(&mut self) {
+            std::env::remove_var(crate::compat::HEXTECH_ARAM_ENV);
+            crate::compat::aram();
+        }
     }
 }
