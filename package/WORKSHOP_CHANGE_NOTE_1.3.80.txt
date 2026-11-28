@@ -1,0 +1,4 @@
+1.3.80
+- 王者荣耀十人整合包（nl_hok_combine，创意工坊 3819183002，作者 Nilu）的 10 个英雄按王者的分路内置：大司命、夏侯惇、影上路，云缨打野，上官婉儿、小乔中路，伽罗、虞姬下路，少司缘、瑶辅助；常打的第二个位置写在后面。
+
+1.3.80: the 10 heroes of Nilu's Honor of Kings pack (nl_hok_combine, Workshop 3819183002) built in by their Honor of Kings lanes: Da Siming, Xiahou Dun and Ying Top, Yunying Jungle, Shangguan Wan'er and Xiao Qiao Mid, Galo and Yu Ji Bot, Shao Siyuan and Yao Support; a second lane they often play follows.
